@@ -1,13 +1,13 @@
 #include "cobs.h"
 
-cobs_ret_t cobs_encode(void *buf, size_t buf_len, size_t *out_enc_len) {
-  if (!buf || !out_enc_len || (buf_len < 2)) {
+cobs_ret_t cobs_encode(void *buf, size_t buf_len) {
+  if (!buf || (buf_len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
   unsigned char *src = (unsigned char *)buf;
   if ((src[0] != COBS_ENCODE_SENTINEL_VALUE) ||
-      (src[buf_len-1] != COBS_ENCODE_SENTINEL_VALUE)) {
+      (src[buf_len - 1] != COBS_ENCODE_SENTINEL_VALUE)) {
     return COBS_RET_ERR_BAD_SENTINELS;
   }
 
