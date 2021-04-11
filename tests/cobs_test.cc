@@ -36,16 +36,16 @@ TEST_CASE("Encode parameter validation", "[cobs_encode]") {
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
 
-  SECTION("Invalid payload: last jump > 256B") {
+  SECTION("Invalid payload: last jump == 256B") {
     byte_vec_t buf{CSV, 0x00};
-    buf.insert(std::end(buf), 256, 1);
+    buf.insert(std::end(buf), 255, 1);
     buf.push_back(CSV);
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
 
-  SECTION("Invalid payload: non-last jump > 256B") {
+  SECTION("Invalid payload: non-last jump == 256B") {
     byte_vec_t buf{CSV, 0x00};
-    buf.insert(std::end(buf), 256, 1);
+    buf.insert(std::end(buf), 255, 1);
     buf.push_back(CSV);
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
@@ -94,6 +94,26 @@ TEST_CASE("Encoding", "[cobs_encode]") {
     std::iota(std::begin(expected), std::end(expected), 0x00);
     expected[0] = 0xFF;
     expected[expected.size() - 1] = 0x00;
+    REQUIRE( buf == expected );
+  }
+
+  SECTION("Unsafe payload with 254B jumps") {
+    byte_vec_t buf{CSV};
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(0x00);
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(0x00);
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(CSV);
+    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected{0xFF};
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0xFF);
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0xFF);
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0x00);
     REQUIRE( buf == expected );
   }
 }
