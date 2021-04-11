@@ -1,11 +1,15 @@
 SRCS := cobs.c tests/cobs_test.cc tests/unittest_main.cc
-
 BUILD_DIR ?= ./build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
+OS := $(shell uname)
 
-CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Weverything \
-		   -Wno-poison-system-directories -Wno-c++98-compat
+CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Wno-c++98-compat
+
+ifeq ($(OS),Darwin)
+	CPPFLAGS += -Weverything -Wno-poison-system-directories
+endif
+
 CFLAGS = --std=c11
 CXXFLAGS = --std=c++17
 
