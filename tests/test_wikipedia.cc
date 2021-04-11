@@ -5,49 +5,93 @@ using byte_vec_t = std::vector< unsigned char >;
 static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
 
 namespace {
-  void round_trip_inplace(byte_vec_t const &decoded,
-                          byte_vec_t const &encoded) {
-    byte_vec_t x(decoded);
-    unsigned const n = static_cast< unsigned >(x.size());
-    REQUIRE( cobs_encode_inplace(x.data(), n) == COBS_RET_SUCCESS );
-    REQUIRE( x == encoded );
-    REQUIRE( cobs_decode_inplace(x.data(), n) == COBS_RET_SUCCESS );
-    REQUIRE( x == decoded );
-  }
+void round_trip_inplace(byte_vec_t const &decoded,
+                        byte_vec_t const &encoded) {
+  byte_vec_t decoded_inplace{CSV};
+  decoded_inplace.insert(
+    std::end(decoded_inplace), std::begin(decoded), std::end(decoded));
+  decoded_inplace.push_back(CSV);
+
+  byte_vec_t x(decoded_inplace);
+  unsigned const n = static_cast< unsigned >(x.size());
+
+  REQUIRE( cobs_encode_inplace(x.data(), n) == COBS_RET_SUCCESS );
+  REQUIRE( x == encoded );
+  REQUIRE( cobs_decode_inplace(x.data(), n) == COBS_RET_SUCCESS );
+  REQUIRE( x == decoded_inplace );
+}
+
+void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
+  unsigned char enc_actual[512], dec_actual[512];
+  unsigned enc_actual_len, dec_actual_len;
+
+  REQUIRE( cobs_encode(decoded.data(),
+                       static_cast< unsigned >(decoded.size()),
+                       enc_actual,
+                       sizeof(enc_actual),
+                       &enc_actual_len) == COBS_RET_SUCCESS );
+
+  REQUIRE( enc_actual_len == encoded.size() );
+  REQUIRE( encoded == byte_vec_t(enc_actual, enc_actual + enc_actual_len) );
+
+  REQUIRE( cobs_decode(enc_actual,
+                       enc_actual_len,
+                       dec_actual,
+                       sizeof(dec_actual),
+                       &dec_actual_len) == COBS_RET_SUCCESS );
+
+  REQUIRE( dec_actual_len == decoded.size() );
+  REQUIRE( decoded == byte_vec_t(dec_actual, dec_actual + dec_actual_len) );
+}
 }
 
 // https://wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
-TEST_CASE("Wikipedia round-trip examples", "[cobs_encode][cobs_decode]") {
+
+TEST_CASE("Wikipedia round-trip examples",
+          "[cobs_encode][cobs_decode][cobs_encode_inplace][cobs_decode_inplace]") {
   SECTION("Example 1") {
-    round_trip_inplace({CSV, 0x00, CSV}, {0x01, 0x01, 0x00});
+    const byte_vec_t decoded{0x00};
+    const byte_vec_t encoded{0x01, 0x01, 0x00};
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 2") {
-    round_trip_inplace({CSV, 0x00, 0x00, CSV}, {0x01, 0x01, 0x01, 0x00});
+    const byte_vec_t decoded{0x00, 0x00};
+    const byte_vec_t encoded{0x01, 0x01, 0x01, 0x00};
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 3") {
-    round_trip_inplace({CSV,  0x11, 0x22, 0x00, 0x33, CSV},
-                       {0x03, 0x11, 0x22, 0x02, 0x33, 0x00});
+    const byte_vec_t decoded{0x11, 0x22, 0x00, 0x33};
+    const byte_vec_t encoded{0x03, 0x11, 0x22, 0x02, 0x33, 0x00};
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 4") {
-    round_trip_inplace({CSV,  0x11, 0x22, 0x33, 0x44, CSV},
-                       {0x05, 0x11, 0x22, 0x33, 0x44, 0x00});
+    const byte_vec_t decoded{0x11, 0x22, 0x33, 0x44};
+    const byte_vec_t encoded{0x05, 0x11, 0x22, 0x33, 0x44, 0x00};
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 5") {
-    round_trip_inplace({CSV,  0x11, 0x00, 0x00, 0x00, CSV},
-                       {0x02, 0x11, 0x01, 0x01, 0x01, 0x00});
+    const byte_vec_t decoded{0x11, 0x00, 0x00, 0x00};
+    const byte_vec_t encoded{0x02, 0x11, 0x01, 0x01, 0x01, 0x00};
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 6") {
-    byte_vec_t decoded{CSV};
+    // 01 02 03 ... FD FE
+    byte_vec_t decoded;
     for (unsigned char i = 0x01u; i <= 0xFE; ++i) {
       decoded.push_back(i);
     }
-    decoded.push_back(CSV);
 
+    // FF 01 02 03 ... FD FE 00
     byte_vec_t encoded{0xFF};
     for (unsigned char i = 0x01u; i <= 0xFE; ++i) {
       encoded.push_back(i);
@@ -55,15 +99,17 @@ TEST_CASE("Wikipedia round-trip examples", "[cobs_encode][cobs_decode]") {
     encoded.push_back(0x00);
 
     round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
   SECTION("Example 7") {
-    byte_vec_t decoded{CSV};
+    // 00 01 02 ... FC FD FE
+    byte_vec_t decoded;
     for (unsigned char i = 0x00u; i <= 0xFE; ++i) {
       decoded.push_back(i);
     }
-    decoded.push_back(CSV);
 
+    // 01 FF 01 02 ... FC FD FE 00
     byte_vec_t encoded{0x01, 0xFF};
     for (unsigned char i = 0x01u; i <= 0xFE; ++i) {
       encoded.push_back(i);
@@ -71,17 +117,47 @@ TEST_CASE("Wikipedia round-trip examples", "[cobs_encode][cobs_decode]") {
     encoded.push_back(0x00);
 
     round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 
-  // Examples 8 and 9 can't be done in-place, need two calls.
+  SECTION("Example 8") {
+    // 01 02 03 ... FD FE FF
+    byte_vec_t decoded(255);
+    std::iota(std::begin(decoded), std::end(decoded), 0x01);
+
+    // FF 01 02 03 ... FD FE 02 FF 00
+    byte_vec_t encoded(255);
+    std::iota(std::begin(encoded), std::end(encoded), 0x00);
+    encoded[0] = 0xFF;
+    encoded.insert(std::end(encoded), {0x02, 0xFF, 0x00});
+
+    round_trip(decoded, encoded);
+  }
+
+  SECTION("Example 9") {
+    // 02 03 04 ... FE FF 00
+    byte_vec_t decoded(255);
+    std::iota(std::begin(decoded), std::end(decoded), 0x02);
+    decoded[decoded.size() - 1] = 0x00;
+
+    // FF 02 03 04 ... FE FF 01 01 00
+    byte_vec_t encoded(255);
+    std::iota(std::begin(encoded), std::end(encoded), 0x01);
+    encoded[0] = 0xFF;
+    encoded.insert(std::end(encoded), {0x01, 0x01, 0x00});
+
+    round_trip(decoded, encoded);
+  }
 
   SECTION("Example 10") {
-    byte_vec_t decoded{CSV};
+    // 03 04 05 ... FF 00 01
+    byte_vec_t decoded;
     for (auto i = 0x03u; i <= 0xFF; ++i) {
       decoded.push_back(static_cast< unsigned char >(i));
     }
-    decoded.insert(decoded.end(), {0x00, 0x01, CSV});
+    decoded.insert(decoded.end(), {0x00, 0x01});
 
+    // FE 03 04 05 ... FF 02 01 00
     byte_vec_t encoded{0xFE};
     for (auto i = 0x03u; i <= 0xFF; ++i) {
       encoded.push_back(static_cast< unsigned char >(i));
@@ -89,5 +165,6 @@ TEST_CASE("Wikipedia round-trip examples", "[cobs_encode][cobs_decode]") {
     encoded.insert(encoded.end(), {0x02, 0x01, 0x00});
 
     round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
   }
 }

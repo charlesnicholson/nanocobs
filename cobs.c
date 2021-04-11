@@ -101,10 +101,9 @@ cobs_ret_t cobs_encode(void const *dec,
     ++src;
   }
 
-  if (++enc_len > enc_max) { return COBS_RET_ERR_EXHAUSTED; }
-    *dst++ = 0;
-
   *code_dst = code;
+  if (++enc_len > enc_max) { return COBS_RET_ERR_EXHAUSTED; }
+  *dst++ = 0;
   *out_enc_len = enc_len;
   return COBS_RET_SUCCESS;
 }
@@ -121,5 +120,32 @@ cobs_ret_t cobs_decode(void const *enc,
   if ((enc_len < 2) || (dec_max < enc_len)) {
     return COBS_RET_ERR_BAD_ARG;
   }
+
+  cobs_byte_t const *src = (cobs_byte_t const *)enc;
+  cobs_byte_t const *const end = src + enc_len - 1;
+  cobs_byte_t *dst = (cobs_byte_t *)out_dec;
+  unsigned block_len = 0;
+  unsigned code = 0xFF;
+  unsigned dec_len = 0;
+
+  while (src < end) {
+    if (block_len) {
+      if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+      *dst++ = *src++;
+    } else {
+      if (code != 0xFF) {
+        if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+        *dst++ = 0;
+      }
+
+      block_len = code = *src++;
+      if (code == 0) {
+        break;
+      }
+    }
+    --block_len;
+  }
+
+  *out_dec_len = dec_len;
   return COBS_RET_SUCCESS;
 }
