@@ -1,14 +1,14 @@
 #include "cobs.h"
 
-cobs_ret_t cobs_encode(void *buf, unsigned len) {
+cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
   unsigned char * const src = (unsigned char *)buf;
   unsigned cur = 0;
-  if ((src[cur] != COBS_SENTINEL_VALUE) ||
-      (src[len - 1] != COBS_SENTINEL_VALUE)) {
+  if ((src[cur] != COBS_INPLACE_SENTINEL_VALUE) ||
+      (src[len - 1] != COBS_INPLACE_SENTINEL_VALUE)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
@@ -33,7 +33,7 @@ cobs_ret_t cobs_encode(void *buf, unsigned len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode(void *buf, unsigned len) {
+cobs_ret_t cobs_decode_inplace(void *buf, unsigned len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -53,7 +53,7 @@ cobs_ret_t cobs_decode(void *buf, unsigned len) {
     }
   }
 
-  src[0] = COBS_SENTINEL_VALUE;
-  src[cur] = COBS_SENTINEL_VALUE;
+  src[0] = COBS_INPLACE_SENTINEL_VALUE;
+  src[cur] = COBS_INPLACE_SENTINEL_VALUE;
   return COBS_RET_SUCCESS;
 }

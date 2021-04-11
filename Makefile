@@ -1,5 +1,10 @@
-SRCS := cobs.c tests/cobs_test.cc tests/unittest_main.cc
-BUILD_DIR ?= ./build
+SRCS := cobs.c \
+		tests/test_cobs_encode_inplace.cc \
+		tests/test_cobs_decode_inplace.cc \
+		tests/test_wikipedia.cc \
+		tests/unittest_main.cc
+
+BUILD_DIR := ./build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
