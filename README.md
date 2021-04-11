@@ -2,7 +2,7 @@
 
 `nanocobs` is a C99 implementation of the [Consistent Overhead Byte Stuffing](https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing) ("COBS") algorithm, defined in the [paper](http://www.stuartcheshire.org/papers/COBSforToN.pdf) by Stuart Cheshire and Mary Baker.
 
-User-provided buffers are encoded and decoded in-place, requiring no extra memory overhead. No standard library headers are included, and no standard library functions are called.
+User-provided buffers can encoded and decoded in-place, or into separate buffers. The `nanocobs` runtime requires no extra memory overhead. No standard library headers are included, and no standard library functions are called.
 
 ## Rationale
 
