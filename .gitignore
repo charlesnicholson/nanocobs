@@ -9,6 +9,10 @@ build
 *.obj
 *.elf
 
+# Compiler temporaries
+*.i
+*.bc
+
 # Linker output
 *.ilk
 *.map

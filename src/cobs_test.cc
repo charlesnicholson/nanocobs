@@ -2,38 +2,45 @@
 #include "catch.hpp"
 
 using byte_vec_t = std::vector< unsigned char >;
-static constexpr auto CESV = COBS_ENCODE_SENTINEL_VALUE;
+static constexpr auto CSV = COBS_SENTINEL_VALUE;
 
 TEST_CASE("Parameter validation", "[cobs_encode]") {
   SECTION("Null buffer pointer") {
     REQUIRE( cobs_encode(nullptr, 123) == COBS_RET_ERR_BAD_ARG );
   }
 
+  SECTION("Invalid buf_len") {
+    char buf;
+    REQUIRE( cobs_encode(&buf, 0) == COBS_RET_ERR_BAD_ARG );
+    REQUIRE( cobs_encode(&buf, 1) == COBS_RET_ERR_BAD_ARG );
+    REQUIRE( cobs_encode(&buf, 258) == COBS_RET_ERR_BAD_ARG );
+  }
+
   SECTION("Invalid sentinel values") {
-    byte_vec_t buf{CESV - 1, CESV - 1};
+    byte_vec_t buf{CSV - 1, CSV - 1};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_ERR_BAD_SENTINELS );
-    buf = byte_vec_t{CESV, CESV - 1};
+    buf = byte_vec_t{CSV, CSV - 1};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_ERR_BAD_SENTINELS );
-    buf = byte_vec_t{CESV - 1, CESV};
+    buf = byte_vec_t{CSV - 1, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_ERR_BAD_SENTINELS );
   }
 }
 
 TEST_CASE("Encoding", "[cobs_encode]") {
   SECTION("Empty") {
-    byte_vec_t buf{CESV, CESV};
+    byte_vec_t buf{CSV, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x01, 0x00 } );
   }
 
   SECTION("One nonzero byte") {
-    byte_vec_t buf{CESV, 0x01, CESV};
+    byte_vec_t buf{CSV, 0x01, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x02, 0x01, 0x00 } );
   }
 
   SECTION("One zero byte") {
-    byte_vec_t buf{CESV, 0x00, CESV};
+    byte_vec_t buf{CSV, 0x00, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x01, 0x01, 0x00 } );
   }
@@ -42,32 +49,82 @@ TEST_CASE("Encoding", "[cobs_encode]") {
 // https://wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 TEST_CASE("Wikipedia encoding examples", "[cobs_encode]") {
   SECTION("Example 1") {
-    byte_vec_t buf{CESV, 0x00, CESV};
+    byte_vec_t buf{CSV, 0x00, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
-    REQUIRE( buf == byte_vec_t{ 0x01, 0x00 } );
+    REQUIRE( buf == byte_vec_t{ 0x01, 0x01, 0x00 } );
   }
 
   SECTION("Example 2") {
-    byte_vec_t buf{CESV, 0x00, 0x00, CESV};
+    byte_vec_t buf{CSV, 0x00, 0x00, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x01, 0x01, 0x01, 0x00 } );
   }
 
   SECTION("Example 3") {
-    byte_vec_t buf{CESV, 0x11, 0x00, 0x22, 0x33, CESV};
+    byte_vec_t buf{CSV, 0x11, 0x22, 0x00, 0x33, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x03, 0x11, 0x22, 0x02, 0x33, 0x00 } );
   }
 
   SECTION("Example 4") {
-    byte_vec_t buf{CESV, 0x11, 0x22, 0x33, 0x44, CESV};
+    byte_vec_t buf{CSV, 0x11, 0x22, 0x33, 0x44, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x05, 0x11, 0x22, 0x33, 0x44, 0x00 } );
   }
 
   SECTION("Example 5") {
-    byte_vec_t buf{CESV, 0x11, 0x00, 0x00, 0x00, CESV};
+    byte_vec_t buf{CSV, 0x11, 0x00, 0x00, 0x00, CSV};
     REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{ 0x02, 0x11, 0x01, 0x01, 0x01, 0x00 } );
+  }
+
+  SECTION("Example 6") {
+    byte_vec_t buf{CSV};
+    for (auto i = 0x01u; i <= 0xFE; ++i) {
+      buf.push_back(i);
+    }
+    buf.push_back(CSV);
+    REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected{0xFF};
+    for (auto i = 0x01u; i <= 0xFE; ++i) {
+      expected.push_back(i);
+    }
+    expected.push_back(0x00);
+    REQUIRE( buf == expected );
+  }
+
+  SECTION("Example 7") {
+    byte_vec_t buf{CSV};
+    for (auto i = 0x00u; i <= 0xFE; ++i) {
+      buf.push_back(i);
+    }
+    buf.push_back(CSV);
+    REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected{0x01, 0xFF};
+    for (auto i = 0x01u; i <= 0xFE; ++i) {
+      expected.push_back(i);
+    }
+    expected.push_back(0x00);
+    REQUIRE( buf == expected );
+  }
+
+  // Examples 8 and 9 can't be done in-place, need two calls.
+
+  SECTION("Example 10") {
+    byte_vec_t buf{CSV};
+    for (auto i = 0x03u; i <= 0xFF; ++i) {
+      buf.push_back(i);
+    }
+    buf.insert(buf.end(), {0x00, 0x01, CSV});
+    REQUIRE( cobs_encode(buf.data(), buf.size()) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected{0xFE};
+    for (auto i = 0x03u; i <= 0xFF; ++i) {
+      expected.push_back(i);
+    }
+    expected.insert(expected.end(), {0x02, 0x01, 0x00});
+    REQUIRE( buf == expected );
   }
 }

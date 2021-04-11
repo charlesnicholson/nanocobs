@@ -9,7 +9,7 @@ typedef enum {
 } cobs_ret_t;
 
 enum {
-  COBS_ENCODE_SENTINEL_VALUE = 0x5A,
+  COBS_SENTINEL_VALUE = 0x5A,
 };
 
 #ifdef __cplusplus
