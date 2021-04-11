@@ -40,6 +40,8 @@ if (result == COBS_RET_SUCCESS) {
 
 ### Decoding
 
+You are responsible for accumulating data until you encounter a frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_, you would have had to place there anyway.
+
 ```
 char buf[64];
 
