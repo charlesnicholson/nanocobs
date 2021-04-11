@@ -4,7 +4,7 @@ SRCS := cobs.c \
 		tests/test_wikipedia.cc \
 		tests/unittest_main.cc
 
-BUILD_DIR := ./build
+BUILD_DIR := build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
