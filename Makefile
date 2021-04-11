@@ -6,7 +6,7 @@ OS := $(shell uname)
 
 CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Weverything -Wno-c++98-compat
 
-ifeq $(OS) Darwin
+ifeq ($(OS),Darwin)
 	CPPFLAGS += -Wno-poison-system-directories
 endif
 
