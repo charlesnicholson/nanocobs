@@ -84,7 +84,7 @@ cobs_ret_t cobs_encode(void const *dec,
     cobs_byte_t const byte = *src;
     if (byte) {
       if (++enc_len > enc_max) { return COBS_RET_ERR_EXHAUSTED; }
-      *dst++ = *src;
+      *dst++ = byte;
       ++code;
     }
 
