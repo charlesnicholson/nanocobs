@@ -94,8 +94,8 @@ cobs_ret_t cobs_encode(void const *dec,
       code = 1;
 
       if ((byte == 0) || dec_len) {
-        ++dst;
         if (++enc_len > enc_max) { return COBS_RET_ERR_EXHAUSTED; }
+        ++dst;
       }
     }
     ++src;
