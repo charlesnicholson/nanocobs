@@ -60,7 +60,9 @@ The COBS paper reserves the literal `0xFF` to indicate "254 data bytes *not* fol
 
 This first implementation of `nanocobs` does not support this feature. Without it, there's a simple guarantee that the only bytes mutated during encoding and decoding are the sentinel bytes and the interior zero bytes. Note that in the current implementation, `nanocobs` does support large payloads as long as they don't have interior non-zero-byte runs greater than 254 bytes in length. If an interior non-zero-byte run longer than 254 bytes is encountered, encoding stops and `COBS_RET_ERR_BAD_PAYLOAD` is returned. The buffer is left in a partially-encoded indeterminate state.
 
-`nanocobs` should support this feature, but it will change the API and introduce more overhead. `cobs_encode` will need to take a larger buffer with `capacity` and `length` arguments, since a new failure mode is "when _inserting_ new overhead `0xFF` code bytes, the buffer was exhausted." Adding this functionality might take the form of a new encode function, or a "strict" option that immediately errors out (like the current behavior) if new overhead bytes need to be inserted. 
+`nanocobs` should support this feature, but it will change the API and introduce more overhead. `cobs_encode` can no longer work in-place, and will need to take an additional larger `output` buffer, and support the new failure mode of "when _inserting_ new overhead `0xFF` code bytes, the `output` buffer was exhausted." Adding this functionality might take the form of a new encode function, or a "strict" option that immediately errors out (like the current behavior) if new overhead bytes need to be inserted. Perhaps something like `cobs_encode` and `cobs_encode_in_place` that share common functionality under the hood.
+
+In the meantime, it means that frames have a maximum size of 256 bytes, and the user-available portion is 254 bytes. That's 122 frames per second over a 250kbps UART link, approximately 8msec per frame.
 
 ## Developing
 
