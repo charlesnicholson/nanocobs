@@ -4,10 +4,10 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
 
-CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Weverything -Wno-c++98-compat
+CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Darwin)
-	CPPFLAGS += -Wno-poison-system-directories
+	CPPFLAGS += -Weverything -Wno-poison-system-directories
 endif
 
 CFLAGS = --std=c11
