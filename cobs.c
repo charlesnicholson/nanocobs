@@ -64,21 +64,59 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned len) {
 
 cobs_ret_t cobs_encode(void const *dec,
                        unsigned dec_len,
-                       void *enc,
                        unsigned enc_max,
+                       void *out_enc,
                        unsigned *out_enc_len) {
-  if (!dec || !enc || !out_enc_len || (enc_max < 2) || (enc_max < dec_len)) {
+  if (!dec || !out_enc || !out_enc_len) {
     return COBS_RET_ERR_BAD_ARG;
   }
+  if ((enc_max < 2) || (enc_max < dec_len)) {
+    return COBS_RET_ERR_BAD_ARG;
+  }
+
+  cobs_byte_t const *src = (cobs_byte_t const *)dec;
+  cobs_byte_t *dst = (cobs_byte_t *)out_enc;
+  cobs_byte_t *code_dst = dst++;
+  cobs_byte_t code = 1;
+  unsigned enc_len = 0;
+
+#define COBS_ENCODE__PUT(NONZERO_BYTE) \
+  do { \
+    if (++enc_len > enc_max) { return COBS_RET_ERR_EXHAUSTED; } \
+    *dst++ = (NONZERO_BYTE); \
+  } while (0)
+
+  while (dec_len--) {
+    cobs_byte_t byte = *src;
+    if ((byte == 0) || (code == 0xFF)) {
+      *code_dst = code;
+      code_dst = dst;
+      code = 1;
+    } else {
+      COBS_ENCODE__PUT(*src);
+      ++code;
+    }
+    ++src;
+  }
+
+  *code_dst = code;
+  COBS_ENCODE__PUT(0x00);
+#undef COBS_ENCODE__PUT
+
+  *out_enc_len = enc_len;
   return COBS_RET_SUCCESS;
 }
 
+
 cobs_ret_t cobs_decode(void const *enc,
                        unsigned enc_len,
-                       void *dec,
                        unsigned dec_max,
+                       void *out_dec,
                        unsigned *out_dec_len) {
-  if (!enc || !dec || !out_dec_len || (enc_len < 2) || (dec_max < enc_len)) {
+  if (!enc || !out_dec || !out_dec_len) {
+    return COBS_RET_ERR_BAD_ARG;
+  }
+  if ((enc_len < 2) || (dec_max < enc_len)) {
     return COBS_RET_ERR_BAD_ARG;
   }
   return COBS_RET_SUCCESS;
