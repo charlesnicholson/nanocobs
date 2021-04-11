@@ -28,7 +28,7 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
   }
 
   unsigned const ofs = (unsigned)(cur - patch);
-  if (ofs >= 256) {
+  if (ofs > 255) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
   *patch = (cobs_byte_t)ofs;
