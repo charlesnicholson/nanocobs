@@ -48,7 +48,8 @@ unsigned const length = you_fill_buf_with_data(buf);
 
 cobs_ret_t const result = cobs_decode(buf, length);
 if (result == COBS_RET_SUCCESS) {
-  // decoding succeeded
+  // decoding succeeded, bytes 0 and length are COBS_SENTINEL_VALUE.
+  // your data is in [1 ... length - 2]
 } else {
   // look to result for details (bad args, bad payload)
 }
