@@ -10,11 +10,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: make
+        run: make -j
 
   macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: make
+        run: make -j
