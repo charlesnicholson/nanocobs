@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stddef.h>
-
 typedef enum {
   COBS_RET_SUCCESS = 0,
   COBS_RET_ERR_BAD_ARG,
@@ -9,15 +7,16 @@ typedef enum {
 } cobs_ret_t;
 
 enum {
-  COBS_SENTINEL_VALUE = 0x5A
+  COBS_SENTINEL_VALUE = 0x5A,
+  COBS_SAFE_BUFFER_SIZE = 256
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-cobs_ret_t cobs_encode(void *buf, size_t len);
-cobs_ret_t cobs_decode(void *buf, size_t len);
+cobs_ret_t cobs_encode(void *buf, unsigned len);
+cobs_ret_t cobs_decode(void *buf, unsigned len);
 
 #ifdef __cplusplus
 }

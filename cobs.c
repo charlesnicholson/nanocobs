@@ -1,46 +1,59 @@
 #include "cobs.h"
 
-cobs_ret_t cobs_encode(void *buf, size_t len) {
-  if (!buf || (len < 2) || (len > 257)) {
+cobs_ret_t cobs_encode(void *buf, unsigned len) {
+  if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  unsigned char *src = (unsigned char *)buf, *last = src + len - 1;
-  if ((*src != COBS_SENTINEL_VALUE) || (*last != COBS_SENTINEL_VALUE)) {
+  unsigned char * const src = (unsigned char *)buf;
+  unsigned cur = 0;
+  if ((src[cur] != COBS_SENTINEL_VALUE) ||
+      (src[len - 1] != COBS_SENTINEL_VALUE)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
-  unsigned char *patch = src++;
-  while (src != last) {
-    if (!*src) {
-      *patch = (unsigned char)(src - patch);
-      patch = src;
+  unsigned patch = cur++;
+  while (cur != len - 1) {
+    if (src[cur] == 0) {
+      if (cur - patch >= 256) {
+        return COBS_RET_ERR_BAD_PAYLOAD;
+      }
+      src[patch] = (unsigned char)(cur - patch);
+      patch = cur;
     }
-    ++src;
+    ++cur;
   }
 
-  *patch = (unsigned char)(src - patch);
-  *last = 0;
+  if (cur - patch >= 256) {
+    return COBS_RET_ERR_BAD_PAYLOAD;
+  }
+
+  src[patch] = (unsigned char)(cur - patch);
+  src[cur] = 0;
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode(void *buf, size_t len) {
-  if (!buf || (len < 2) || (len > 257)) {
+cobs_ret_t cobs_decode(void *buf, unsigned len) {
+  if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  unsigned char *src = (unsigned char *)buf, *cur = src, *last = src + len - 1;
-  if (*last || !*src) {
+  unsigned char * const src = (unsigned char *)buf;
+  unsigned cur = 0;
+  if ((src[cur] == 0) || (src[len - 1] != 0)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
-  while (*cur) {
-    unsigned const offset = *cur;
-    *cur = 0;
-    cur += offset;
+  while (src[cur]) {
+    unsigned const ofs = src[cur];
+    src[cur] = 0;
+    cur += ofs;
+    if (cur >= len) {
+      return COBS_RET_ERR_BAD_PAYLOAD;
+    }
   }
 
-  *src = COBS_SENTINEL_VALUE;
-  *cur = COBS_SENTINEL_VALUE;
+  src[0] = COBS_SENTINEL_VALUE;
+  src[cur] = COBS_SENTINEL_VALUE;
   return COBS_RET_SUCCESS;
 }
