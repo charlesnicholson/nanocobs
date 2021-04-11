@@ -1,6 +1,8 @@
 #include "../cobs.h"
 #include "catch.hpp"
 
+#include <cstring>
+
 using byte_vec_t = std::vector< unsigned char >;
 
 TEST_CASE("Encoding validation", "[cobs_encode]") {
