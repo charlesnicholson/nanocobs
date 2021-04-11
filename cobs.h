@@ -3,7 +3,8 @@
 typedef enum {
   COBS_RET_SUCCESS = 0,
   COBS_RET_ERR_BAD_ARG,
-  COBS_RET_ERR_BAD_PAYLOAD
+  COBS_RET_ERR_BAD_PAYLOAD,
+  COBS_RET_ERR_EXHAUSTED
 } cobs_ret_t;
 
 enum {
@@ -18,17 +19,17 @@ extern "C" {
 cobs_ret_t cobs_encode_inplace(void *buf, unsigned len);
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned len);
 
-cobs_ret_t cobs_encode(void const *src,
-                       unsigned src_len,
-                       void *dst,
-                       unsigned dst_len,
-                       unsigned *out_encoded_len);
+cobs_ret_t cobs_encode(void const *dec,
+                       unsigned dec_len,
+                       void *out_enc,
+                       unsigned enc_max,
+                       unsigned *out_enc_len);
 
-cobs_ret_t cobs_decode(void const *src,
-                       unsigned src_len,
-                       void *dst,
-                       unsigned dst_len,
-                       unsigned *out_decoded_len);
+cobs_ret_t cobs_decode(void const *enc,
+                       unsigned enc_len,
+                       void *out_dec,
+                       unsigned dec_max,
+                       unsigned *out_dec_len);
 
 #ifdef __cplusplus
 }
