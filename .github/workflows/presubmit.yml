@@ -7,25 +7,22 @@ on:
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
-    container: charlesnicholson/circleci-images:latest
+    #    container: charlesnicholson/circleci-images:latest
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        env:
-          CC: /usr/bin/gcc
-          CXX: /usr/bin/g++
         run: make
 
-  linux-clang:
-    runs-on: ubuntu-latest
-    container: charlesnicholson/circleci-images:latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Build
-        env:
-          CC: /usr/bin/clang
-          CXX: /usr/bin/clang++
-        run: make
+        #  linux-clang:
+        #    runs-on: ubuntu-latest
+        #    #    container: charlesnicholson/circleci-images:latest
+        #    steps:
+        #      - uses: actions/checkout@v2
+        #      - name: Build
+        #        env:
+        #          CC: /usr/bin/clang
+        #          CXX: /usr/bin/clang++
+        #        run: make
 
   macos:
     runs-on: macos-latest
