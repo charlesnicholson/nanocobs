@@ -1,0 +1,49 @@
+name: Presubmit Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  linux-gcc:
+    runs-on: ubuntu-latest
+    container: charlesnicholson/circleci-images:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        env:
+          CC: /usr/bin/gcc
+          CXX: /usr/bin/g++
+        run: make
+
+  linux-clang:
+    runs-on: ubuntu-latest
+    container: charlesnicholson/circleci-images:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        env:
+          CC: /usr/bin/clang
+          CXX: /usr/bin/clang++
+        run: make
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: make
+
+        #  win:
+        #    runs-on: windows-latest
+        #    strategy:
+        #      matrix:
+        #        architecture: [32, 64]
+        #        configuration: [Debug, Release]
+        #    steps:
+        #      - uses: actions/checkout@v2
+        #      - name: Build
+        #        shell: cmd
+        #        run: |
+        #          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars${{ matrix.architecture }}.bat"
+        #          python.exe build.py --cfg ${{ matrix.configuration }} -v
