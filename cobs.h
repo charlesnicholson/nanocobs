@@ -21,14 +21,14 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned len);
 
 cobs_ret_t cobs_encode(void const *dec,
                        unsigned dec_len,
-                       unsigned enc_max,
                        void *out_enc,
+                       unsigned enc_max,
                        unsigned *out_enc_len);
 
 cobs_ret_t cobs_decode(void const *enc,
                        unsigned enc_len,
-                       unsigned dec_max,
                        void *out_dec,
+                       unsigned dec_max,
                        unsigned *out_dec_len);
 
 #ifdef __cplusplus
