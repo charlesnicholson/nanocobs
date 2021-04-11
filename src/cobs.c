@@ -1,15 +1,13 @@
 #include "cobs.h"
 
-cobs_ret_t cobs_encode(void *buf, size_t buf_len) {
-  if (!buf || (buf_len < 2) || (buf_len > 257)) {
+cobs_ret_t cobs_encode(void *buf, size_t len) {
+  if (!buf || (len < 2) || (len > 257)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  unsigned char *src = (unsigned char *)buf;
-  unsigned char *last = src + buf_len - 1;
-
+  unsigned char *src = (unsigned char *)buf, *last = src + len - 1;
   if ((*src != COBS_SENTINEL_VALUE) || (*last != COBS_SENTINEL_VALUE)) {
-    return COBS_RET_ERR_BAD_SENTINELS;
+    return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
   unsigned char *patch = src++;
@@ -26,9 +24,23 @@ cobs_ret_t cobs_encode(void *buf, size_t buf_len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode(void *buf, void *out_dec_buf, size_t *out_dec_len) {
-  (void)buf;
-  (void)out_dec_buf;
-  (void)out_dec_len;
+cobs_ret_t cobs_decode(void *buf, size_t len) {
+  if (!buf || (len < 2) || (len > 257)) {
+    return COBS_RET_ERR_BAD_ARG;
+  }
+
+  unsigned char *src = (unsigned char *)buf, *cur = src, *last = src + len - 1;
+  if (*last || !*src) {
+    return COBS_RET_ERR_BAD_PAYLOAD;
+  }
+
+  while (*cur) {
+    unsigned const offset = *cur;
+    *cur = 0;
+    cur += offset;
+  }
+
+  *src = COBS_SENTINEL_VALUE;
+  *cur = COBS_SENTINEL_VALUE;
   return COBS_RET_SUCCESS;
 }

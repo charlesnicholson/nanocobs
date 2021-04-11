@@ -4,7 +4,8 @@ BUILD_DIR ?= ./build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 
-CPPFLAGS ?= -MMD -MP -Os -Wall -Werror -Wextra
+CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Weverything \
+		   -Wno-poison-system-directories -Wno-c++98-compat
 CFLAGS = --std=c11
 CXXFLAGS = --std=c++17
 

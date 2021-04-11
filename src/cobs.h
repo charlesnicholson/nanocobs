@@ -5,19 +5,19 @@
 typedef enum {
   COBS_RET_SUCCESS = 0,
   COBS_RET_ERR_BAD_ARG,
-  COBS_RET_ERR_BAD_SENTINELS,
+  COBS_RET_ERR_BAD_PAYLOAD
 } cobs_ret_t;
 
 enum {
-  COBS_SENTINEL_VALUE = 0x5A,
+  COBS_SENTINEL_VALUE = 0x5A
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-cobs_ret_t cobs_encode(void *buf, size_t buf_len);
-cobs_ret_t cobs_decode(void *buf, void *out_dec_buf, size_t *out_dec_len);
+cobs_ret_t cobs_encode(void *buf, size_t len);
+cobs_ret_t cobs_decode(void *buf, size_t len);
 
 #ifdef __cplusplus
 }
