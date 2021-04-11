@@ -66,6 +66,8 @@ This first implementation of `nanocobs` does not support this feature. Without i
 
 In the meantime, it means that frames have a maximum size of 256 bytes, and the user-available portion is 254 bytes. That's 122 frames per second over a 250kbps UART link, approximately 8msec per frame.
 
+Finally, Zero Pair Elimination (ZPE) is not implemented. The ZPE variant, described in the paper at Section III Subsection D, further carves up the code-byte space to include a range reserved to describe _pairs_ of zeros at the destination offset.
+
 ## Developing
 
 `nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests, just run `make` from a terminal after cloning.
