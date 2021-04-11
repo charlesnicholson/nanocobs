@@ -1,4 +1,4 @@
-#include "cobs.h"
+#include "../cobs.h"
 #include "catch.hpp"
 
 using byte_vec_t = std::vector< unsigned char >;

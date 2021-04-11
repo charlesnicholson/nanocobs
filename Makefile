@@ -1,4 +1,4 @@
-SRCS := ./src/cobs.c ./src/cobs_test.cc ./src/unittest_main.cc
+SRCS := cobs.c tests/cobs_test.cc tests/unittest_main.cc
 
 BUILD_DIR ?= ./build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
