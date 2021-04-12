@@ -86,16 +86,13 @@ TEST_CASE("Wikipedia round-trip examples",
 
   SECTION("Example 6") {
     // 01 02 03 ... FD FE
-    byte_vec_t decoded;
-    for (unsigned char i = 0x01u; i <= 0xFE; ++i) {
-      decoded.push_back(i);
-    }
+    byte_vec_t decoded(254);
+    std::iota(std::begin(decoded), std::end(decoded), 0x01);
 
     // FF 01 02 03 ... FD FE 00
-    byte_vec_t encoded{0xFF};
-    for (unsigned char i = 0x01u; i <= 0xFE; ++i) {
-      encoded.push_back(i);
-    }
+    byte_vec_t encoded(255);
+    std::iota(std::begin(encoded), std::end(encoded), 0x00);
+    encoded[0] = 0xFF;
     encoded.push_back(0x00);
 
     round_trip_inplace(decoded, encoded);
@@ -104,10 +101,8 @@ TEST_CASE("Wikipedia round-trip examples",
 
   SECTION("Example 7") {
     // 00 01 02 ... FC FD FE
-    byte_vec_t decoded;
-    for (unsigned char i = 0x00u; i <= 0xFE; ++i) {
-      decoded.push_back(i);
-    }
+    byte_vec_t decoded(255);
+    std::iota(std::begin(decoded), std::end(decoded), 0x00);
 
     // 01 FF 01 02 ... FC FD FE 00
     byte_vec_t encoded{0x01, 0xFF};
