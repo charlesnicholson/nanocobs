@@ -47,6 +47,8 @@ if (result == COBS_RET_SUCCESS) {
 
 The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_inplace` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
 
+(Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_INPLACE_SAFE_BUFFER_SIZE`)
+
 ```
 char buf[64];
 buf[0] = COBS_SENTINEL_VALUE; // You have to do this.
