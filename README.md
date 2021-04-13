@@ -24,7 +24,7 @@ Also I didn't see as many unit tests as I'd have liked in the other libraries, e
 
 Compile `cobs.c` and link it into your app. `#include "path/to/cobs.h"` in your source code. Call functions.
 
-### Encoding to Separate Buffers
+### Encoding With Separate Buffers
 
 Fill a buffer with the data you'd like to encode. Prepare a larger buffer to hold the encoded data. Then, call `cobs_encode` to encode the data into the destination buffer.
 
@@ -64,7 +64,7 @@ if (result == COBS_RET_SUCCESS) {
   // encoding failed, look to 'result' for details.
 }
 ```
-### Decoding
+### Decoding With Separate Buffers
 
 Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`.
 ```
