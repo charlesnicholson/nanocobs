@@ -51,4 +51,52 @@ TEST_CASE("Inplace decoding", "[cobs_decode_inplace]") {
     REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{CSV, 0x00, CSV} );
   }
+
+  SECTION("Safe payload, all zero bytes") {
+    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    std::fill(std::begin(buf), std::end(buf), 0x01);
+    buf[buf.size() - 1] = 0x00;
+    REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected(buf.size());
+    std::fill(std::begin(expected), std::end(expected), 0x00);
+    expected[0] = CSV;
+    expected[expected.size() - 1] = CSV;
+
+    REQUIRE( buf == expected );
+  }
+
+  SECTION("Safe payload, no zero bytes") {
+    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    std::iota(std::begin(buf), std::end(buf), 0x00);
+    buf[0] = 0xFF;
+    buf[buf.size() - 1] = 0x00;
+    REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected(buf.size());
+    std::iota(std::begin(expected), std::end(expected), 0x00);
+    expected[0] = CSV;
+    expected[expected.size() - 1] = CSV;
+    REQUIRE( buf == expected );
+  }
+
+  SECTION("Unsafe payload with 254B jumps") {
+    byte_vec_t buf{0xFF};
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(0xFF);
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(0xFF);
+    buf.insert(std::end(buf), 254, 0x01);
+    buf.push_back(0x00);
+    REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
+
+    byte_vec_t expected{CSV};
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0x00);
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0x00);
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(CSV);
+    REQUIRE( expected == buf );
+  }
 }
