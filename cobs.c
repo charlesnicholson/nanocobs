@@ -14,25 +14,24 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
-#define COBS__ENCODE_INPLACE_PATCH() \
-  do { \
-    unsigned const ofs = (unsigned)(cur - patch); \
-    if (ofs > 255) { return COBS_RET_ERR_BAD_PAYLOAD; } \
-    *patch = (cobs_byte_t)ofs; \
-  } while (0)
-
   cobs_byte_t *patch = cur++;
-  while (cur != end) {
+  while (cur < end) {
     if (*cur == 0) {
-      COBS__ENCODE_INPLACE_PATCH();
+      unsigned const ofs = (unsigned)(cur - patch);
+      if (ofs > 255) {
+        return COBS_RET_ERR_BAD_PAYLOAD;
+      }
+      *patch = (cobs_byte_t)ofs;
       patch = cur;
     }
     ++cur;
   }
 
-  COBS__ENCODE_INPLACE_PATCH();
-#undef COBS__ENCODE_INPLACE_PATCH
-
+  unsigned const ofs = (unsigned)(cur - patch);
+  if (ofs > 255) {
+    return COBS_RET_ERR_BAD_PAYLOAD;
+  }
+  *patch = (cobs_byte_t)ofs;
   *cur = 0;
   return COBS_RET_SUCCESS;
 }
@@ -108,7 +107,6 @@ cobs_ret_t cobs_encode(void const *dec,
   return COBS_RET_SUCCESS;
 }
 
-
 cobs_ret_t cobs_decode(void const *enc,
                        unsigned enc_len,
                        void *out_dec,
@@ -123,27 +121,31 @@ cobs_ret_t cobs_decode(void const *enc,
 
   cobs_byte_t const *src = (cobs_byte_t const *)enc;
   cobs_byte_t const *const end = src + enc_len - 1;
+  if (*end) {
+    return COBS_RET_ERR_BAD_PAYLOAD;
+  }
+
   cobs_byte_t *dst = (cobs_byte_t *)out_dec;
-  unsigned block_len = 0;
-  unsigned code = 0xFF;
   unsigned dec_len = 0;
 
   while (src < end) {
-    if (block_len) {
-      if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
-      *dst++ = *src++;
-    } else {
-      if (code != 0xFF) {
-        if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
-        *dst++ = 0;
-      }
-
-      block_len = code = *src++;
-      if (code == 0) {
-        break;
-      }
+    unsigned const code = *src++;
+    if (!code) {
+      return COBS_RET_ERR_BAD_PAYLOAD;
     }
-    --block_len;
+    dec_len += code - 1;
+    if (dec_len > dec_max) {
+      return COBS_RET_ERR_EXHAUSTED;
+    }
+    for (unsigned i = 0; i < code - 1; ++i) {
+      *dst++ = *src++;
+    }
+    if ((src < end) && (code < 0xFF)) {
+      if (++dec_len > dec_max) {
+        return COBS_RET_ERR_EXHAUSTED;
+      }
+      *dst++ = 0;
+    }
   }
 
   *out_dec_len = dec_len;
