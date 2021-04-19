@@ -30,16 +30,17 @@ TEST_CASE("Inplace encoding validation", "[cobs_encode_inplace]") {
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
 
-  SECTION("Invalid payload: last jump == 256B") {
-    byte_vec_t buf{CSV, 0x00};
-    buf.insert(std::end(buf), 255, 1);
+  SECTION("Nonzero run longer than 255") {
+    byte_vec_t buf{CSV};
+    buf.insert(std::end(buf), 256, 0x01);
     buf.push_back(CSV);
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
 
-  SECTION("Invalid payload: non-last jump == 256B") {
+  SECTION("Non-final run of 255 bytes") {
     byte_vec_t buf{CSV, 0x00};
     buf.insert(std::end(buf), 255, 1);
+    buf.push_back(0x00);
     buf.push_back(CSV);
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
   }
@@ -63,6 +64,15 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
     REQUIRE( buf == byte_vec_t{0x01, 0x01, 0x00} );
   }
+
+  /*
+  SECTION("Final run of 255 bytes") {
+    byte_vec_t buf{CSV, 0x00};
+    buf.insert(std::end(buf), 255, 1);
+    buf.push_back(CSV);
+    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+  }
+  */
 
   SECTION("Safe payload, all zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
