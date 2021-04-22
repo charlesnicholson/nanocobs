@@ -31,7 +31,6 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                        sizeof(enc_actual),
                        &enc_actual_len) == COBS_RET_SUCCESS );
 
-  REQUIRE( enc_actual_len == encoded.size() );
   REQUIRE( encoded == byte_vec_t(enc_actual, enc_actual + enc_actual_len) );
 
   REQUIRE( cobs_decode(enc_actual,
@@ -40,7 +39,6 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                        sizeof(dec_actual),
                        &dec_actual_len) == COBS_RET_SUCCESS );
 
-  REQUIRE( dec_actual_len == decoded.size() );
   REQUIRE( decoded == byte_vec_t(dec_actual, dec_actual + dec_actual_len) );
 }
 }
@@ -146,10 +144,8 @@ TEST_CASE("Wikipedia round-trip examples",
 
   SECTION("Example 10") {
     // 03 04 05 ... FF 00 01
-    byte_vec_t decoded;
-    for (auto i = 0x03u; i <= 0xFF; ++i) {
-      decoded.push_back(static_cast< unsigned char >(i));
-    }
+    byte_vec_t decoded(253);
+    std::iota(std::begin(decoded), std::end(decoded), 0x03);
     decoded.insert(decoded.end(), {0x00, 0x01});
 
     // FE 03 04 05 ... FF 02 01 00

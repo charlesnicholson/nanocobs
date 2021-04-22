@@ -13,7 +13,7 @@ OS := $(shell uname)
 CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Darwin)
-	CPPFLAGS += -Weverything -Wno-poison-system-directories
+	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 endif
 
 CFLAGS = --std=c11
