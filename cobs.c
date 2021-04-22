@@ -78,8 +78,8 @@ cobs_ret_t cobs_encode(void const *dec,
   while (dec_len--) {
     cobs_byte_t const byte = *src;
     if (byte) {
-      *dst++ = byte;
-      if (dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
+      *dst = byte;
+      if (++dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
       ++code;
     }
 
@@ -87,17 +87,15 @@ cobs_ret_t cobs_encode(void const *dec,
       *code_dst = code;
       code_dst = dst;
       code = 1;
-
       if ((byte == 0) || dec_len) {
-        ++dst;
-        if (dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
+        if (++dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
       }
     }
     ++src;
   }
 
   *code_dst = code;
-  *dst++ = 0;
+  *dst = 0;
   *out_enc_len = (unsigned)(dst - (cobs_byte_t *)out_enc);
   return COBS_RET_SUCCESS;
 }
