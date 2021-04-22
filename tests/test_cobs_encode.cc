@@ -79,7 +79,6 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
     REQUIRE( cobs_encode(&dec, 1, enc, sizeof(enc), &enc_len) ==
              COBS_RET_SUCCESS );
     REQUIRE( byte_vec_t(enc, enc + enc_len) == byte_vec_t{0x01, 0x01, 0x00} );
-    REQUIRE( enc_len == 3 );
   }
 
   SECTION("2 zero bytes") {
@@ -89,7 +88,6 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
              COBS_RET_SUCCESS );
     REQUIRE( byte_vec_t(enc, enc + enc_len) ==
              byte_vec_t{0x01, 0x01, 0x01, 0x00} );
-    REQUIRE( enc_len == 4 );
   }
 
   SECTION("8 nonzero bytes") {
@@ -98,7 +96,6 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
              COBS_RET_SUCCESS );
     REQUIRE( byte_vec_t(enc, enc + enc_len) ==
              byte_vec_t{0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x00} );
-    REQUIRE( enc_len == 10 );
   }
 
   SECTION("4 alternating zero/nonzero bytes") {
@@ -108,7 +105,6 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
     dec[3] = 0x22;
     REQUIRE( cobs_encode(&dec, 4, enc, sizeof(enc), &enc_len) ==
              COBS_RET_SUCCESS );
-    REQUIRE( enc_len == 6 );
     REQUIRE( byte_vec_t(enc, enc + enc_len) ==
              byte_vec_t{0x01, 0x02, 0x11, 0x02, 0x22, 0x00} );
   }
