@@ -110,5 +110,18 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
   }
 }
 
-TEST_CASE("0xFE and 0xFF single code-block cases", "[cobs_encode]") {
+TEST_CASE("0xFF single code-block case", "[cobs_encode]") {
+  byte_vec_t dec(254, 0x01);
+  byte_vec_t enc( cobs_encode_max(static_cast< unsigned >(dec.size())) );
+  unsigned enc_len;
+  REQUIRE( cobs_encode(dec.data(),
+                       static_cast< unsigned >(dec.size()),
+                       enc.data(),
+                       static_cast< unsigned >(enc.size()),
+                       &enc_len) == COBS_RET_SUCCESS );
+
+  byte_vec_t expected(255, 0x01);
+  expected[0] = 0xFF;
+  expected.push_back(0x00);
+  REQUIRE ( enc == expected );
 }
