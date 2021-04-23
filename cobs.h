@@ -19,6 +19,8 @@ extern "C" {
 cobs_ret_t cobs_encode_inplace(void *buf, unsigned len);
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned len);
 
+unsigned cobs_encode_max(unsigned dec_len);
+
 cobs_ret_t cobs_encode(void const *dec,
                        unsigned dec_len,
                        void *out_enc,

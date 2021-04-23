@@ -61,6 +61,10 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned len) {
   return COBS_RET_SUCCESS;
 }
 
+unsigned cobs_encode_max(unsigned dec_len) {
+  return 1 + dec_len + ((dec_len + 253) / 254) + (dec_len == 0);
+}
+
 cobs_ret_t cobs_encode(void const *dec,
                        unsigned dec_len,
                        void *out_enc,
