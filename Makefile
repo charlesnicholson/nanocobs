@@ -15,10 +15,11 @@ OS := $(shell uname)
 CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Darwin)
-	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
+CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 else ifdef $(COBS_LINUX32)
-	CPPFLAGS += -m32
-	LDFLAGS += -m32
+CPPFLAGS += -m32
+LDFLAGS += -m32
+endif
 endif
 
 CFLAGS = --std=c11
