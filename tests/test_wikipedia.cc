@@ -3,8 +3,9 @@
 
 #include <numeric>
 
-using byte_vec_t = std::vector< unsigned char >;
-static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
+using byte_t = unsigned char;
+using byte_vec_t = std::vector< byte_t >;
+static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
 
 namespace {
 void round_trip_inplace(byte_vec_t const &decoded,
@@ -87,11 +88,11 @@ TEST_CASE("Wikipedia round-trip examples",
   SECTION("Example 6") {
     // 01 02 03 ... FD FE
     byte_vec_t decoded(254);
-    std::iota(std::begin(decoded), std::end(decoded), 0x01);
+    std::iota(std::begin(decoded), std::end(decoded), static_cast< byte_t >(0x01));
 
     // FF 01 02 03 ... FD FE 00
     byte_vec_t encoded(255);
-    std::iota(std::begin(encoded), std::end(encoded), 0x00);
+    std::iota(std::begin(encoded), std::end(encoded), static_cast< byte_t >(0x00));
     encoded[0] = 0xFF;
     encoded.push_back(0x00);
 
@@ -102,7 +103,7 @@ TEST_CASE("Wikipedia round-trip examples",
   SECTION("Example 7") {
     // 00 01 02 ... FC FD FE
     byte_vec_t decoded(255);
-    std::iota(std::begin(decoded), std::end(decoded), 0x00);
+    std::iota(std::begin(decoded), std::end(decoded), static_cast< byte_t >(0x00));
 
     // 01 FF 01 02 ... FC FD FE 00
     byte_vec_t encoded{0x01, 0xFF};
@@ -118,11 +119,11 @@ TEST_CASE("Wikipedia round-trip examples",
   SECTION("Example 8") {
     // 01 02 03 ... FD FE FF
     byte_vec_t decoded(255);
-    std::iota(std::begin(decoded), std::end(decoded), 0x01);
+    std::iota(std::begin(decoded), std::end(decoded), static_cast< byte_t >(0x01));
 
     // FF 01 02 03 ... FD FE 02 FF 00
     byte_vec_t encoded(255);
-    std::iota(std::begin(encoded), std::end(encoded), 0x00);
+    std::iota(std::begin(encoded), std::end(encoded), static_cast< byte_t >(0x00));
     encoded[0] = 0xFF;
     encoded.insert(std::end(encoded), {0x02, 0xFF, 0x00});
 
@@ -132,12 +133,12 @@ TEST_CASE("Wikipedia round-trip examples",
   SECTION("Example 9") {
     // 02 03 04 ... FE FF 00
     byte_vec_t decoded(255);
-    std::iota(std::begin(decoded), std::end(decoded), 0x02);
+    std::iota(std::begin(decoded), std::end(decoded), static_cast< byte_t >(0x02));
     decoded[decoded.size() - 1] = 0x00;
 
     // FF 02 03 04 ... FE FF 01 01 00
     byte_vec_t encoded(255);
-    std::iota(std::begin(encoded), std::end(encoded), 0x01);
+    std::iota(std::begin(encoded), std::end(encoded), static_cast< byte_t >(0x01));
     encoded[0] = 0xFF;
     encoded.insert(std::end(encoded), {0x01, 0x01, 0x00});
 

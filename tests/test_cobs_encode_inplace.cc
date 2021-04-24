@@ -7,7 +7,7 @@
 
 using byte_t = unsigned char;
 using byte_vec_t = std::vector< byte_t >;
-static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
+static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
 
 namespace {
   cobs_ret_t cobs_encode_vec(byte_vec_t &v) {
@@ -100,7 +100,7 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
 
     byte_vec_t expected(buf.size());
-    std::iota(std::begin(expected), std::end(expected), 0x00);
+    std::iota(std::begin(expected), std::end(expected), static_cast< byte_t >(0x00));
     expected[0] = 0xFF;
     expected[expected.size() - 1] = 0x00;
     REQUIRE( buf == expected );

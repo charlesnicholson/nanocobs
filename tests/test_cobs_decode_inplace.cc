@@ -3,8 +3,9 @@
 
 #include <numeric>
 
-using byte_vec_t = std::vector< unsigned char >;
-static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
+using byte_t = unsigned char;
+using byte_vec_t = std::vector< byte_t >;
+static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
 
 namespace {
   cobs_ret_t cobs_decode_vec(byte_vec_t &v) {
@@ -56,7 +57,7 @@ TEST_CASE("Inplace decoding", "[cobs_decode_inplace]") {
 
   SECTION("Safe payload, all zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
-    std::fill(std::begin(buf), std::end(buf), 0x01);
+    std::fill(std::begin(buf), std::end(buf), static_cast< byte_t >(0x01));
     buf[buf.size() - 1] = 0x00;
     REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
 
@@ -70,13 +71,13 @@ TEST_CASE("Inplace decoding", "[cobs_decode_inplace]") {
 
   SECTION("Safe payload, no zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
-    std::iota(std::begin(buf), std::end(buf), 0x00);
+    std::iota(std::begin(buf), std::end(buf), static_cast< byte_t >(0x00));
     buf[0] = 0xFF;
     buf[buf.size() - 1] = 0x00;
     REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
 
     byte_vec_t expected(buf.size());
-    std::iota(std::begin(expected), std::end(expected), 0x00);
+    std::iota(std::begin(expected), std::end(expected), static_cast< byte_t >(0x00));
     expected[0] = CSV;
     expected[expected.size() - 1] = CSV;
     REQUIRE( buf == expected );
