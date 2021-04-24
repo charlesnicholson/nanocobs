@@ -1,4 +1,4 @@
-cl.exe /W4 /EHsc /link /out:cobs_unittests.exe ^
+cl.exe /W4 /EHsc
     cobs.c ^
     tests/test_cobs_encode_max.cc ^
     tests/test_cobs_encode.cc ^
@@ -7,4 +7,4 @@ cl.exe /W4 /EHsc /link /out:cobs_unittests.exe ^
     tests/test_paper_figures.cc ^
     tests/test_wikipedia.cc ^
     tests/unittest_main.cc ^
-    || exit /b 1
+    /link /out:cobs_unittests.exe || exit /b 1
