@@ -5,12 +5,19 @@ on:
     branches: [ main ]
 
 jobs:
-  linux-gcc:
+  linux-gcc64:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Build
         run: make -j
+
+  linux-gcc32:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: make -j COBS_LINUX32=1
 
   macos:
     runs-on: macos-latest
