@@ -1,6 +1,8 @@
 #include "../cobs.h"
 #include "catch.hpp"
 
+#include <cstring>
+
 using byte_vec_t = std::vector< unsigned char >;
 static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
 
@@ -119,5 +121,73 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     expected.insert(std::end(expected), 254, 0x01);
     expected.push_back(0x00);
     REQUIRE( buf == expected );
+  }
+}
+
+namespace {
+void verify_encode_inplace(unsigned char *inplace, unsigned payload_len) {
+  byte_vec_t external(cobs_encode_max(payload_len));
+  unsigned external_len;
+  REQUIRE( cobs_encode(inplace + 1,
+                       payload_len,
+                       external.data(),
+                       static_cast< unsigned >(external.size()),
+                       &external_len) == COBS_RET_SUCCESS );
+
+  REQUIRE( cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS );
+  REQUIRE( byte_vec_t(inplace, inplace + payload_len + 2) == external );
+}
+
+void fill_inplace(unsigned char *inplace, unsigned payload_len, unsigned char f) {
+  memset(inplace + 1, f, payload_len);
+  inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+  inplace[payload_len+1] = COBS_INPLACE_SENTINEL_VALUE;
+}
+}
+
+TEST_CASE("Encode: Inplace == External", "[cobs_encode_inplace]") {
+  unsigned char inplace[COBS_INPLACE_SAFE_BUFFER_SIZE];
+
+  SECTION("Fill with zeros") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_inplace(inplace, i, 0x00);
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with nonzeros") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_inplace(inplace, i, 0x01);
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with 0xFF") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_inplace(inplace, i, 0xFF);
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with zero/one pattern") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      for (auto j = 1u; j < i; ++j) {
+        inplace[j] = j & 1;
+      }
+      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with one/zero pattern") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      for (auto j = 1u; j < i; ++j) {
+        inplace[j] = (j & 1) ^ 1;
+      }
+      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      verify_encode_inplace(inplace, i);
+    }
   }
 }

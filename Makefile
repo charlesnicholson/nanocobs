@@ -12,7 +12,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
 
-CPPFLAGS = -MMD -MP -Os -Wall -Werror -Wextra -Wno-c++98-compat
+CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Darwin)
 	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
@@ -21,13 +21,13 @@ endif
 CFLAGS = --std=c11
 CXXFLAGS = --std=c++17
 
-$(BUILD_DIR)/cobs_unittests: $(OBJS)
+$(BUILD_DIR)/cobs_unittests: $(OBJS) Makefile
 	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
 
-$(BUILD_DIR)/%.c.o: %.c
+$(BUILD_DIR)/%.c.o: %.c Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
-$(BUILD_DIR)/%.cc.o: %.cc
+$(BUILD_DIR)/%.cc.o: %.cc Makefile
 	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cobs_unittests.timestamp: $(BUILD_DIR)/cobs_unittests
