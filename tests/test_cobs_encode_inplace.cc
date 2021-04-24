@@ -1,6 +1,8 @@
 #include "../cobs.h"
 #include "catch.hpp"
 
+#include <numeric>
+
 #include <cstring>
 
 using byte_vec_t = std::vector< unsigned char >;
