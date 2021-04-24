@@ -1,6 +1,8 @@
 #include "../cobs.h"
 #include "catch.hpp"
 
+#include <numeric>
+
 using byte_vec_t = std::vector< unsigned char >;
 static constexpr unsigned char CSV = COBS_INPLACE_SENTINEL_VALUE;
 
