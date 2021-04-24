@@ -16,11 +16,9 @@ CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Darwin)
 	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
-else ifeq ($(OS),Linux)
-  ifdef $(COBS_LINUX32)
+else ifdef $(COBS_LINUX32)
 	CPPFLAGS += -m32
 	LDFLAGS += -m32
-  endif
 endif
 
 CFLAGS = --std=c11

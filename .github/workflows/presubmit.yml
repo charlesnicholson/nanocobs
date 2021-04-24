@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: make -j COBS_LINUX32=1
+        run: COBS_LINUX32=1 make -j
 
   macos:
     runs-on: macos-latest
