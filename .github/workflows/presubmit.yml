@@ -21,10 +21,14 @@ jobs:
 
   win:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        architecture: [32, 64]
+        configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v2
       - name: Build
         shell: cmd
         run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars32.bat"
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars${{ matrix.architecture }}.bat"
           call make-win.bat

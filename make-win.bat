@@ -8,3 +8,4 @@ cl.exe /W4 /EHsc ^
     tests/test_wikipedia.cc ^
     tests/unittest_main.cc ^
     /link /out:cobs_unittests.exe || exit /b 1
+dir
