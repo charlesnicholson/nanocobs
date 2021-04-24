@@ -62,7 +62,7 @@ TEST_CASE("Inplace decoding", "[cobs_decode_inplace]") {
     REQUIRE( cobs_decode_vec(buf) == COBS_RET_SUCCESS );
 
     byte_vec_t expected(buf.size());
-    std::fill(std::begin(expected), std::end(expected), 0x00);
+    std::fill(std::begin(expected), std::end(expected), static_cast< byte_t >(0x00));
     expected[0] = CSV;
     expected[expected.size() - 1] = CSV;
 

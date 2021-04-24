@@ -148,7 +148,7 @@ TEST_CASE("Wikipedia round-trip examples",
   SECTION("Example 10") {
     // 03 04 05 ... FF 00 01
     byte_vec_t decoded(253);
-    std::iota(std::begin(decoded), std::end(decoded), 0x03);
+    std::iota(std::begin(decoded), std::end(decoded), static_cast< byte_t >(0x03));
     decoded.insert(decoded.end(), {0x00, 0x01});
 
     // FE 03 04 05 ... FF 02 01 00
