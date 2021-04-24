@@ -24,7 +24,6 @@ jobs:
     strategy:
       matrix:
         architecture: [32, 64]
-        configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v2
       - name: Build
