@@ -14,6 +14,13 @@ OS := $(shell uname)
 
 CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
 
+ifeq ($(OS),Linux)
+	ifeq ($(COBS_32LINUX),1)
+		CPPFLAGS += -m32
+		LDFLAGS += -m32
+	endif
+endif
+
 ifeq ($(OS),Darwin)
 	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 endif
