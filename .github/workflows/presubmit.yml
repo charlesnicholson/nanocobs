@@ -7,10 +7,18 @@ on:
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
+    container:
+      image: docker.pkg.github.com/charlesnicholson/docker-images/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.PACKAGE_READ_TOKEN }}
+    strategy:
+      matrix:
+        architecture: [32, 64]
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: make -j
+        run: COBS_LINUXARCH=${{ matrix.architecture }} make -j
 
   macos:
     runs-on: macos-latest
