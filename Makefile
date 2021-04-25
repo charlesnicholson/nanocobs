@@ -15,7 +15,7 @@ OS := $(shell uname)
 CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
 
 ifeq ($(OS),Linux)
-	ifeq ($(COBS_32LINUX),1)
+	ifeq ($(COBS_LINUXARCH),32)
 		CPPFLAGS += -m32
 		LDFLAGS += -m32
 	endif

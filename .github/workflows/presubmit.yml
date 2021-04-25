@@ -7,10 +7,13 @@ on:
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [32, 64]
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: make -j
+        run: COBS_LINUXARCH=${{ matrix.architecture }} make -j
 
   macos:
     runs-on: macos-latest
