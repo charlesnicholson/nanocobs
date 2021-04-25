@@ -8,7 +8,7 @@ jobs:
   linux-gcc:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/charlesnicholson/docker-images/docker-image:latest
+      image: docker.pkg.github.com/charlesnicholson/docker-images/docker-image:latest
     strategy:
       matrix:
         architecture: [32, 64]
