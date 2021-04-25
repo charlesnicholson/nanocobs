@@ -12,7 +12,7 @@ OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
 
-CPPFLAGS = -MMD -MP -Os -g -Wall -Werror -Wextra -Wno-c++98-compat
+CPPFLAGS += -MMD -MP -Os -g
 
 ifeq ($(OS),Linux)
 	ifeq ($(COBS_LINUXARCH),32)
@@ -21,10 +21,13 @@ ifeq ($(OS),Linux)
 	endif
 endif
 
+CPPFLAGS += -Wall -Werror -Wextra
+
 ifeq ($(OS),Darwin)
 	CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 endif
 
+CPPFLAGS += -Wno-c++98-compat
 CFLAGS = --std=c11
 CXXFLAGS = --std=c++17
 
