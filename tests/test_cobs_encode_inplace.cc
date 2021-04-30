@@ -70,14 +70,12 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     REQUIRE( buf == byte_vec_t{0x01, 0x01, 0x00} );
   }
 
-  /*
-  SECTION("Final run of 255 bytes") {
+  SECTION("Longest possible run of 254 bytes") {
     byte_vec_t buf{CSV, 0x00};
-    buf.insert(std::end(buf), 255, 1);
+    buf.insert(std::end(buf), 254, 1);
     buf.push_back(CSV);
     REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
   }
-  */
 
   SECTION("Safe payload, all zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);

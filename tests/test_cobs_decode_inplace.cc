@@ -1,7 +1,10 @@
 #include "../cobs.h"
 #include "catch.hpp"
 
+#include <algorithm>
 #include <numeric>
+
+#include <cstring>
 
 using byte_t = unsigned char;
 using byte_vec_t = std::vector< byte_t >;
@@ -101,5 +104,54 @@ TEST_CASE("Inplace decoding", "[cobs_decode_inplace]") {
     expected.insert(std::end(expected), 254, 0x01);
     expected.push_back(CSV);
     REQUIRE( expected == buf );
+  }
+}
+
+namespace {
+void verify_decode_inplace(unsigned char *inplace, unsigned payload_len) {
+  byte_vec_t external(std::max(payload_len, 1u));
+  unsigned external_len;
+  REQUIRE( cobs_decode(inplace,
+                       payload_len + 2,
+                       external.data(),
+                       static_cast< unsigned >(external.size()),
+                       &external_len) == COBS_RET_SUCCESS );
+
+  REQUIRE( external_len == payload_len );
+  REQUIRE( cobs_decode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS );
+  REQUIRE( byte_vec_t(inplace + 1, inplace + external_len + 1) ==
+           byte_vec_t(std::begin(external), std::begin(external) + external_len) );
+}
+
+void fill_encode_inplace(byte_t *inplace, unsigned payload_len, byte_t f) {
+  inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+  memset(inplace + 1, f, payload_len);
+  inplace[payload_len+1] = COBS_INPLACE_SENTINEL_VALUE;
+  REQUIRE( cobs_encode_inplace( inplace, payload_len + 2 ) == COBS_RET_SUCCESS );
+}
+}
+
+TEST_CASE("Decode: Inplace == External", "[cobs_encode_inplace]") {
+  unsigned char inplace[COBS_INPLACE_SAFE_BUFFER_SIZE];
+
+  SECTION("Fill with zeros") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_encode_inplace(inplace, i, 0x00);
+      verify_decode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with nonzeros") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_encode_inplace(inplace, i, 0x01);
+      verify_decode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with 0xFF") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      fill_encode_inplace(inplace, i, 0xFF);
+      verify_decode_inplace(inplace, i);
+    }
   }
 }
