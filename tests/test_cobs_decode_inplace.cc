@@ -154,4 +154,28 @@ TEST_CASE("Decode: Inplace == External", "[cobs_encode_inplace]") {
       verify_decode_inplace(inplace, i);
     }
   }
+
+  SECTION("Fill with zero/one pattern") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      for (auto j = 1u; j < i; ++j) {
+        inplace[j] = j & 1;
+      }
+      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      REQUIRE( cobs_encode_inplace(inplace, i + 2) == COBS_RET_SUCCESS );
+      verify_decode_inplace(inplace, i);
+    }
+  }
+
+  SECTION("Fill with one/zero pattern") {
+    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      for (auto j = 1u; j < i; ++j) {
+        inplace[j] = (j & 1) ^ 1;
+      }
+      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      REQUIRE( cobs_encode_inplace(inplace, i + 2) == COBS_RET_SUCCESS );
+      verify_decode_inplace(inplace, i);
+    }
+  }
 }
