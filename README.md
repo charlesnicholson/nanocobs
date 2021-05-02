@@ -20,6 +20,20 @@ There are a few out there, but I haven't seen any that optionally encode in-plac
 
 Also I didn't see as many unit tests as I'd have liked in the other libraries, especially around invalid payload handling. Framing protocols make for lovely attack surfaces, and malicious COBS frames can easily instruct decoders to jump outside of the frame itself.
 
+## Metrics
+
+It's pretty small.
+```
+❯ ../gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
+❯ ../gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-nm --print-size --size-sort cobs.o
+
+00000082 00000018 T cobs_encode_max      (24 bytes)
+0000004a 00000038 T cobs_decode_inplace  (56 bytes)
+00000000 0000004a T cobs_encode_inplace  (74 bytes)
+0000009a 0000007e T cobs_encode          (126 bytes)
+00000118 0000008e T cobs_decode          (142 bytes)
+```
+
 ## Usage
 
 Compile `cobs.c` and link it into your app. `#include "path/to/cobs.h"` in your source code. Call functions.
@@ -103,4 +117,4 @@ if (result == COBS_RET_SUCCESS) {
 ```
 ## Developing
 
-`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests, just run `make` from a terminal after cloning.
+`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests, just run `make -j` from a terminal after cloning. It's really amazing how long it takes to compile Catch2, thanks C++!
