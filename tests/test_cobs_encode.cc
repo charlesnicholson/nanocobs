@@ -110,18 +110,71 @@ TEST_CASE("Simple encodings", "[cobs_encode]") {
   }
 }
 
-TEST_CASE("0xFF single code-block case", "[cobs_encode]") {
-  byte_vec_t dec(254, 0x01);
-  byte_vec_t enc( cobs_encode_max(static_cast< unsigned >(dec.size())) );
+namespace {
+byte_vec_t encode(byte_vec_t const &decoded) {
+  byte_vec_t enc(cobs_encode_max(static_cast< unsigned >(decoded.size())));
   unsigned enc_len;
-  REQUIRE( cobs_encode(dec.data(),
-                       static_cast< unsigned >(dec.size()),
+  REQUIRE( cobs_encode(decoded.data(),
+                       static_cast< unsigned >(decoded.size()),
                        enc.data(),
                        static_cast< unsigned >(enc.size()),
                        &enc_len) == COBS_RET_SUCCESS );
+  return byte_vec_t(enc.begin(), enc.begin() + enc_len);
+}
+}
 
+TEST_CASE("0xFF single code-block case", "[cobs_encode]") {
   byte_vec_t expected(255, 0x01);
   expected[0] = 0xFF;
   expected.push_back(0x00);
-  REQUIRE ( enc == expected );
+  REQUIRE( encode(byte_vec_t(254, 0x01)) == expected );
+}
+
+TEST_CASE("Longer payloads", "[cobs_encode]") {
+  SECTION("255 non-zero bytes") {
+    byte_vec_t expected{0xFF};
+    expected.insert(std::end(expected), 254, 0x01);
+    expected.push_back(0x02); // code: distance to next block
+    expected.push_back(0x01);
+    expected.push_back(0x00);
+    REQUIRE( encode(byte_vec_t(255, 0x01)) == expected );
+  }
+
+  SECTION("255 zero bytes") {
+    byte_vec_t expected(256, 0x01);
+    expected.push_back(0x00);
+    REQUIRE( encode(byte_vec_t(255, 0x00)) == expected );
+  }
+
+  SECTION("1024 non-zero bytes") {
+    byte_vec_t expected;
+    for (auto i = 0u; i < 1024 / 254; ++i) {
+      expected.push_back(0xFF);
+      expected.insert(std::end(expected), 254, '!');
+    }
+    expected.push_back((1024 % 254) + 1);
+    expected.insert(std::end(expected), (1024 % 254), '!');
+    expected.push_back(0x00);
+    REQUIRE( encode(byte_vec_t(1024, '!')) == expected );
+  }
+
+  SECTION("1024 zero bytes") {
+    byte_vec_t expected(1025, 0x01);
+    expected.push_back(0x00);
+    REQUIRE( encode(byte_vec_t(1024, 0x00)) == expected );
+  }
+
+  SECTION("1024 every other byte is zero") {
+    byte_vec_t dec;
+    for (auto i = 0u; i < 1024; ++i) {
+      dec.push_back(i & 1);
+    }
+
+    byte_vec_t expected;
+    for (auto i = 0u; i <= 1024; ++i) {
+      expected.push_back((i & 1) ? 2 : 1);
+    }
+    expected.push_back(0x00);
+    REQUIRE( encode(dec) == expected );
+  }
 }
