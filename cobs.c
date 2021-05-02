@@ -115,7 +115,7 @@ cobs_ret_t cobs_decode(void const *enc,
 
   cobs_byte_t const *src = (cobs_byte_t const *)enc;
   cobs_byte_t const *const end = src + enc_len - 1;
-  if (*end) { return COBS_RET_ERR_BAD_PAYLOAD; }
+  if (!*src || *end) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
   cobs_byte_t *dst = (cobs_byte_t *)out_dec;
   unsigned dec_len = 0;
