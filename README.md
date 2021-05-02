@@ -117,6 +117,8 @@ if (result == COBS_RET_SUCCESS) {
 ```
 ## Developing
 
-`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests, just run `make -j` from a terminal after cloning. It's really amazing how long it takes to compile Catch2, thanks C++!
+`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome). 
+
+Also, it's really amazing how long it takes to compile the Catch2 amalgamated file, thanks C++!
 
 The presubmit workflow compiles `nanocobs` on macOS, Linux (gcc) 32/64, Windows (msvc) 32/64. It also builds weekly against a fresh docker image so I know when newer stricter compilers break it.
