@@ -28,7 +28,7 @@ ifeq ($(OS),Darwin)
 endif
 
 CPPFLAGS += -Wno-c++98-compat
-CFLAGS = --std=c11
+CFLAGS = --std=c99
 CXXFLAGS = --std=c++17
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) Makefile
