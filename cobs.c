@@ -33,7 +33,7 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
 
   cobs_byte_t *const src = (cobs_byte_t *)buf;
   unsigned ofs, cur = 0;
-  while ((ofs = src[cur])) {
+  while ((ofs = src[cur]) != 0) {
     src[cur] = 0;
     cur += ofs;
     if (cur > len) { return COBS_RET_ERR_BAD_PAYLOAD; }
