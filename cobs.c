@@ -37,24 +37,17 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
 }
 
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
-  if (!buf || (len < 2)) {
-    return COBS_RET_ERR_BAD_ARG;
-  }
+  if (!buf || (len < 2)) { return COBS_RET_ERR_BAD_ARG; }
 
   cobs_byte_t *const src = (cobs_byte_t *)buf;
   unsigned ofs, cur = 0;
   while ((ofs = src[cur])) {
     src[cur] = 0;
     cur += ofs;
-    if (cur > len) {
-      return COBS_RET_ERR_BAD_PAYLOAD;
-    }
+    if (cur > len) { return COBS_RET_ERR_BAD_PAYLOAD; }
   }
 
-  if (cur != len - 1) {
-    return COBS_RET_ERR_BAD_PAYLOAD;
-  }
-
+  if (cur != len - 1) { return COBS_RET_ERR_BAD_PAYLOAD; }
   src[0] = COBS_ISV;
   src[len - 1] = COBS_ISV;
   return COBS_RET_SUCCESS;
