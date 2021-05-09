@@ -1,4 +1,4 @@
-cl.exe /Wall /WX /EHsc ^
+cl.exe /W4 /WX /EHsc ^
     cobs.c ^
     tests/test_cobs_encode_max.cc ^
     tests/test_cobs_encode.cc ^
