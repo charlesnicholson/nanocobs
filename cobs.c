@@ -4,35 +4,27 @@
 typedef unsigned char cobs_byte_t;
 
 cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
-  if (!buf || (len < 2)) {
-    return COBS_RET_ERR_BAD_ARG;
-  }
+  if (!buf || (len < 2)) { return COBS_RET_ERR_BAD_ARG; }
 
-  cobs_byte_t *cur = (cobs_byte_t *)buf;
-  cobs_byte_t const *const end = cur + len - 1;
-  if ((*cur != COBS_ISV) || (*end != COBS_ISV)) {
+  cobs_byte_t *const src = (cobs_byte_t *)buf;
+  if ((src[0] != COBS_ISV) || (src[len - 1] != COBS_ISV)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
-  cobs_byte_t *patch = cur++;
-  while (cur < end) {
-    if (*cur == 0) {
-      unsigned const ofs = (unsigned)(cur - patch);
-      if (ofs > 255) {
-        return COBS_RET_ERR_BAD_PAYLOAD;
-      }
-      *patch = (cobs_byte_t)ofs;
+  unsigned patch = 0, cur = 1;
+  while (cur < len - 1) {
+    if (!src[cur]) {
+      unsigned const ofs = cur - patch;
+      if (ofs > 255) { return COBS_RET_ERR_BAD_PAYLOAD; }
+      src[patch] = (cobs_byte_t)ofs;
       patch = cur;
     }
     ++cur;
   }
-
-  unsigned const ofs = (unsigned)(cur - patch);
-  if (ofs > 255) {
-    return COBS_RET_ERR_BAD_PAYLOAD;
-  }
-  *patch = (cobs_byte_t)ofs;
-  *cur = 0;
+  unsigned const ofs = cur - patch;
+  if (ofs > 255) { return COBS_RET_ERR_BAD_PAYLOAD; }
+  src[patch] = (cobs_byte_t)ofs;
+  src[cur] = 0;
   return COBS_RET_SUCCESS;
 }
 
