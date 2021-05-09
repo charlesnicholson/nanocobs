@@ -24,14 +24,14 @@ Also I didn't see as many unit tests as I'd have liked in the other libraries, e
 
 It's pretty small.
 ```
-❯ ../gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
-❯ ../gcc-arm-none-eabi-10-2020-q4-major/bin/arm-none-eabi-nm --print-size --size-sort cobs.o
+❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
+❯ arm-none-eabi-nm --print-size --size-sort cobs.o
 
-00000082 00000018 T cobs_encode_max      (24 bytes)
-0000004a 00000038 T cobs_decode_inplace  (56 bytes)
-00000000 0000004a T cobs_encode_inplace  (74 bytes)
-0000009a 0000007e T cobs_encode          (126 bytes)
-00000118 0000008e T cobs_decode          (142 bytes)
+0000007a 00000018 T cobs_encode_max      (24 bytes)
+00000048 00000032 T cobs_decode_inplace  (50 bytes)
+00000000 00000048 T cobs_encode_inplace  (72 bytes)
+00000092 0000007a T cobs_encode          (122 bytes)
+0000010c 00000084 T cobs_decode          (132 bytes)
 ```
 
 ## Usage
@@ -93,7 +93,7 @@ cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(deco
 if (result == COBS_RET_SUCCESS) {
   // decoding succeeded, 'decoded' and 'decoded_len' hold details.
 } else {
-  // decoding failed, look to 'result' for details. 
+  // decoding failed, look to 'result' for details.
 }
 ```
 
@@ -117,7 +117,7 @@ if (result == COBS_RET_SUCCESS) {
 ```
 ## Developing
 
-`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome). 
+`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
 
 Also, it's really amazing how long it takes to compile the Catch2 amalgamated file, thanks C++!
 
