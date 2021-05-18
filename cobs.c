@@ -107,6 +107,7 @@ cobs_ret_t cobs_decode(void const *enc,
   while (src < end) {
     unsigned const code = *src++;
     if (!code) { return COBS_RET_ERR_BAD_PAYLOAD; }
+    if (src + code - 1 > end) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
     dec_len += code - 1;
     if (dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
