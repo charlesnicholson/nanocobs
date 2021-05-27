@@ -3,20 +3,27 @@ name: Presubmit Checks
 on:
   pull_request:
     branches: [ main ]
+
   schedule:
     - cron: '0 2 * * 0'  # Weekly
 
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
     container:
-      image: docker.pkg.github.com/charlesnicholson/docker-images/docker-image:latest
+      image: ghcr.io/charlesnicholson/docker-image:latest
       credentials:
-        username: charlesnicholson
-        password: ${{ secrets.PACKAGE_READ_TOKEN }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
     strategy:
       matrix:
         architecture: [32, 64]
+
     steps:
       - uses: actions/checkout@v2
       - name: Build
@@ -24,6 +31,7 @@ jobs:
 
   macos:
     runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v2
       - name: Build
@@ -31,9 +39,11 @@ jobs:
 
   win:
     runs-on: windows-latest
+
     strategy:
       matrix:
         architecture: [32, 64]
+
     steps:
       - uses: actions/checkout@v2
       - name: Build
