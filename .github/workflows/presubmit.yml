@@ -11,6 +11,9 @@ jobs:
   linux-gcc:
     runs-on: ubuntu-latest
 
+    permissions:
+      packages: read
+
     container:
       image: ghcr.io/charlesnicholson/docker-image:latest
       credentials:
