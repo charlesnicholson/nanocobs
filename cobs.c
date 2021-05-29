@@ -97,8 +97,8 @@ cobs_ret_t cobs_decode(void const *enc,
   if (!enc || !out_dec || !out_dec_len) { return COBS_RET_ERR_BAD_ARG; }
   if (enc_len < 2) { return COBS_RET_ERR_BAD_ARG; }
 
-  cobs_byte_t const *src = (cobs_byte_t const *)enc;
-  cobs_byte_t *dst = (cobs_byte_t *)out_dec;
+  cobs_byte_t const *const src = (cobs_byte_t const *)enc;
+  cobs_byte_t *const dst = (cobs_byte_t *)out_dec;
 
   if (!src[0] || src[enc_len - 1]) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
