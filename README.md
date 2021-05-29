@@ -31,7 +31,7 @@ It's pretty small.
 00000048 00000032 T cobs_decode_inplace  (50 bytes)
 00000000 00000048 T cobs_encode_inplace  (72 bytes)
 00000092 0000007a T cobs_encode          (122 bytes)
-0000010c 00000084 T cobs_decode          (132 bytes)
+0000010c 0000008c T cobs_decode          (140 bytes)
 ```
 
 ## Usage

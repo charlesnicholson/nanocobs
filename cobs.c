@@ -57,35 +57,35 @@ cobs_ret_t cobs_encode(void const *dec,
   if (!dec || !out_enc || !out_enc_len) { return COBS_RET_ERR_BAD_ARG; }
   if ((enc_max < 2) || (enc_max < dec_len)) { return COBS_RET_ERR_BAD_ARG; }
 
-  cobs_byte_t const *src = (cobs_byte_t const *)dec;
-  cobs_byte_t *dst = (cobs_byte_t *)out_enc;
-  cobs_byte_t const *const dst_max = dst + enc_max;
-  cobs_byte_t *code_dst = dst++;
+  cobs_byte_t const *const src = (cobs_byte_t const *)dec;
+  cobs_byte_t *const dst = (cobs_byte_t *)out_enc;
+
+  unsigned src_idx = 0, dst_code_idx = 0, dst_idx = 1;
   cobs_byte_t code = 1;
 
   while (dec_len--) {
-    cobs_byte_t const byte = *src;
+    cobs_byte_t const byte = src[src_idx];
     if (byte) {
-      *dst = byte;
-      if (++dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
+      dst[dst_idx] = byte;
+      if (++dst_idx >= enc_max) { return COBS_RET_ERR_EXHAUSTED; }
       ++code;
     }
 
     if ((byte == 0) || (code == 0xFF)) {
-      *code_dst = code;
-      code_dst = dst;
+      dst[dst_code_idx] = code;
+      dst_code_idx = dst_idx;
       code = 1;
 
       if ((byte == 0) || dec_len) {
-        if (++dst >= dst_max) { return COBS_RET_ERR_EXHAUSTED; }
+        if (++dst_idx >= enc_max) { return COBS_RET_ERR_EXHAUSTED; }
       }
     }
-    ++src;
+    ++src_idx;
   }
 
-  *code_dst = code;
-  *dst++ = 0;
-  *out_enc_len = (unsigned)(dst - (cobs_byte_t *)out_enc);
+  dst[dst_code_idx] = code;
+  dst[dst_idx++] = 0;
+  *out_enc_len = dst_idx;
   return COBS_RET_SUCCESS;
 }
 
@@ -97,30 +97,29 @@ cobs_ret_t cobs_decode(void const *enc,
   if (!enc || !out_dec || !out_dec_len) { return COBS_RET_ERR_BAD_ARG; }
   if (enc_len < 2) { return COBS_RET_ERR_BAD_ARG; }
 
-  cobs_byte_t const *src = (cobs_byte_t const *)enc;
-  cobs_byte_t const *const end = src + enc_len - 1;
-  if (!*src || *end) { return COBS_RET_ERR_BAD_PAYLOAD; }
+  cobs_byte_t const *const src = (cobs_byte_t const *)enc;
+  cobs_byte_t *const dst = (cobs_byte_t *)out_dec;
 
-  cobs_byte_t *dst = (cobs_byte_t *)out_dec;
-  unsigned dec_len = 0;
+  if (!src[0] || src[enc_len - 1]) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
-  while (src < end) {
-    unsigned const code = *src++;
+  unsigned src_idx = 0, dst_idx = 0;
+
+  while (src_idx < (enc_len - 1)) {
+    unsigned const code = src[src_idx++];
     if (!code) { return COBS_RET_ERR_BAD_PAYLOAD; }
-    if (src + code - 1 > end) { return COBS_RET_ERR_BAD_PAYLOAD; }
+    if ((src_idx + code) > enc_len) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
-    dec_len += code - 1;
-    if (dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+    if ((dst_idx + code - 1) > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
     for (unsigned i = 0; i < code - 1; ++i) {
-      *dst++ = *src++;
+      dst[dst_idx++] = src[src_idx++];
     }
 
-    if ((src < end) && (code < 0xFF)) {
-      if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
-      *dst++ = 0;
+    if ((src_idx < (enc_len - 1)) && (code < 0xFF)) {
+      if (dst_idx >= dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+      dst[dst_idx++] = 0;
     }
   }
 
-  *out_dec_len = dec_len;
+  *out_dec_len = dst_idx;
   return COBS_RET_SUCCESS;
 }
