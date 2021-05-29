@@ -115,7 +115,7 @@ cobs_ret_t cobs_decode(void const *enc,
     }
 
     if ((src_idx < (enc_len - 1)) && (code < 0xFF)) {
-      if ((dst_idx + 1) > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+      if (dst_idx >= dec_max) { return COBS_RET_ERR_EXHAUSTED; }
       dst[dst_idx++] = 0;
     }
   }
