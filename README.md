@@ -99,6 +99,10 @@ if (result == COBS_RET_SUCCESS) {
 
 ### Decoding In-Place
 
+There are two ways to decode COBS-encoded data in-place. One is simply by calling `cobs_decode` and pass your buffer to both the `enc` and `out_dec` parameters. Since COBS decoding never needs to revisit decoded bytes, and decoded payloads are always shorter than encoded payloads, this is guaranteed to work.
+
+`cobs_decode_inplace` is also provided and offers byte-layout-parity to `cobs_encode_inplace`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
+
 Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and zero bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
 
 ```
