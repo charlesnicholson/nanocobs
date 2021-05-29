@@ -102,25 +102,24 @@ cobs_ret_t cobs_decode(void const *enc,
   if (!*src || *end) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
   cobs_byte_t *dst = (cobs_byte_t *)out_dec;
-  unsigned dst_idx = 0, dec_len = 0;
+  unsigned dst_idx = 0;
 
   while (src < end) {
     unsigned const code = *src++;
     if (!code) { return COBS_RET_ERR_BAD_PAYLOAD; }
     if (src + code - 1 > end) { return COBS_RET_ERR_BAD_PAYLOAD; }
 
-    dec_len += code - 1;
-    if (dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+    if ((dst_idx + code - 1) > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
     for (unsigned i = 0; i < code - 1; ++i) {
       dst[dst_idx++] = *src++;
     }
 
     if ((src < end) && (code < 0xFF)) {
-      if (++dec_len > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
+      if ((dst_idx + 1) > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
       dst[dst_idx++] = 0;
     }
   }
 
-  *out_dec_len = dec_len;
+  *out_dec_len = dst_idx;
   return COBS_RET_SUCCESS;
 }
