@@ -43,6 +43,16 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                        &dec_actual_len) == COBS_RET_SUCCESS );
 
   REQUIRE( decoded == byte_vec_t(dec_actual, dec_actual + dec_actual_len) );
+
+  // Additionaly, in-place decode atop enc_actual using cobs_decode.
+
+  REQUIRE( cobs_decode(enc_actual,
+                       enc_actual_len,
+                       enc_actual,
+                       sizeof(enc_actual),
+                       &dec_actual_len) == COBS_RET_SUCCESS );
+
+  REQUIRE( decoded == byte_vec_t(enc_actual, enc_actual + dec_actual_len) );
 }
 }
 
