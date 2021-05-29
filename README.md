@@ -103,7 +103,7 @@ There are two ways to decode COBS-encoded data in-place. One is simply by callin
 
 `cobs_decode_inplace` is also provided and offers byte-layout-parity to `cobs_encode_inplace`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
 
-Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and zero bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
+Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
 
 ```
 char buf[64];
