@@ -1,7 +1,8 @@
 #include "../cobs.h"
-#include "catch.hpp"
+#include "doctest.h"
 
 #include <numeric>
+#include <vector>
 
 using byte_t = unsigned char;
 using byte_vec_t = std::vector< byte_t >;
@@ -18,84 +19,83 @@ void round_trip_inplace(byte_vec_t const &decoded,
   byte_vec_t x(decoded_inplace);
   unsigned const n = static_cast< unsigned >(x.size());
 
-  REQUIRE( cobs_encode_inplace(x.data(), n) == COBS_RET_SUCCESS );
-  REQUIRE( x == encoded );
-  REQUIRE( cobs_decode_inplace(x.data(), n) == COBS_RET_SUCCESS );
-  REQUIRE( x == decoded_inplace );
+  REQUIRE(cobs_encode_inplace(x.data(), n) == COBS_RET_SUCCESS);
+  REQUIRE(x == encoded);
+  REQUIRE(cobs_decode_inplace(x.data(), n) == COBS_RET_SUCCESS);
+  REQUIRE(x == decoded_inplace);
 }
 
 void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
   unsigned char enc_actual[512], dec_actual[512];
   unsigned enc_actual_len, dec_actual_len;
 
-  REQUIRE( cobs_encode(decoded.data(),
-                       static_cast< unsigned >(decoded.size()),
-                       enc_actual,
-                       sizeof(enc_actual),
-                       &enc_actual_len) == COBS_RET_SUCCESS );
+  REQUIRE(cobs_encode(decoded.data(),
+                      static_cast< unsigned >(decoded.size()),
+                      enc_actual,
+                      sizeof(enc_actual),
+                      &enc_actual_len) == COBS_RET_SUCCESS);
 
-  REQUIRE( encoded == byte_vec_t(enc_actual, enc_actual + enc_actual_len) );
+  REQUIRE(encoded == byte_vec_t(enc_actual, enc_actual + enc_actual_len));
 
-  REQUIRE( cobs_decode(enc_actual,
-                       enc_actual_len,
-                       dec_actual,
-                       sizeof(dec_actual),
-                       &dec_actual_len) == COBS_RET_SUCCESS );
+  REQUIRE(cobs_decode(enc_actual,
+                      enc_actual_len,
+                      dec_actual,
+                      sizeof(dec_actual),
+                      &dec_actual_len) == COBS_RET_SUCCESS);
 
-  REQUIRE( decoded == byte_vec_t(dec_actual, dec_actual + dec_actual_len) );
+  REQUIRE(decoded == byte_vec_t(dec_actual, dec_actual + dec_actual_len));
 
   // Additionaly, in-place decode atop enc_actual using cobs_decode.
 
-  REQUIRE( cobs_decode(enc_actual,
-                       enc_actual_len,
-                       enc_actual,
-                       sizeof(enc_actual),
-                       &dec_actual_len) == COBS_RET_SUCCESS );
+  REQUIRE(cobs_decode(enc_actual,
+                      enc_actual_len,
+                      enc_actual,
+                      sizeof(enc_actual),
+                      &dec_actual_len) == COBS_RET_SUCCESS);
 
-  REQUIRE( decoded == byte_vec_t(enc_actual, enc_actual + dec_actual_len) );
+  REQUIRE(decoded == byte_vec_t(enc_actual, enc_actual + dec_actual_len));
 }
 }
 
 // https://wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
 
-TEST_CASE("Wikipedia round-trip examples",
-          "[cobs_encode][cobs_decode][cobs_encode_inplace][cobs_decode_inplace]") {
-  SECTION("Example 1") {
+TEST_CASE("Wikipedia round-trip examples") {
+  SUBCASE("Example 1") {
     const byte_vec_t decoded{0x00};
     const byte_vec_t encoded{0x01, 0x01, 0x00};
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 2") {
+  SUBCASE("Example 2") {
     const byte_vec_t decoded{0x00, 0x00};
     const byte_vec_t encoded{0x01, 0x01, 0x01, 0x00};
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 3") {
+  SUBCASE("Example 3") {
     const byte_vec_t decoded{0x11, 0x22, 0x00, 0x33};
     const byte_vec_t encoded{0x03, 0x11, 0x22, 0x02, 0x33, 0x00};
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 4") {
+  SUBCASE("Example 4") {
     const byte_vec_t decoded{0x11, 0x22, 0x33, 0x44};
     const byte_vec_t encoded{0x05, 0x11, 0x22, 0x33, 0x44, 0x00};
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 5") {
+  SUBCASE("Example 5") {
     const byte_vec_t decoded{0x11, 0x00, 0x00, 0x00};
     const byte_vec_t encoded{0x02, 0x11, 0x01, 0x01, 0x01, 0x00};
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 6") {
+  SUBCASE("Example 6") {
     // 01 02 03 ... FD FE
     byte_vec_t decoded(254);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{0x01});
@@ -110,7 +110,7 @@ TEST_CASE("Wikipedia round-trip examples",
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 7") {
+  SUBCASE("Example 7") {
     // 00 01 02 ... FC FD FE
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{0x00});
@@ -126,7 +126,7 @@ TEST_CASE("Wikipedia round-trip examples",
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 8") {
+  SUBCASE("Example 8") {
     // 01 02 03 ... FD FE FF
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{0x01});
@@ -140,7 +140,7 @@ TEST_CASE("Wikipedia round-trip examples",
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 9") {
+  SUBCASE("Example 9") {
     // 02 03 04 ... FE FF 00
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{0x02});
@@ -155,7 +155,7 @@ TEST_CASE("Wikipedia round-trip examples",
     round_trip(decoded, encoded);
   }
 
-  SECTION("Example 10") {
+  SUBCASE("Example 10") {
     // 03 04 05 ... FF 00 01
     byte_vec_t decoded(253);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{0x03});
