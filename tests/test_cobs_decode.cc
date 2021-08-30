@@ -1,16 +1,16 @@
 #include "../cobs.h"
-#include "catch.hpp"
+#include "doctest.h"
 
 #include <cstring>
 
-TEST_CASE("Decoding validation", "[cobs_decode]") {
+TEST_CASE("Decoding validation") {
   unsigned char enc[32], dec[32];
   unsigned dec_len;
 
-  SECTION("Invalid payload") {
+  SUBCASE("Invalid payload") {
     // first byte jumps past end
     enc[0] = 3;
     enc[1] = 0;
-    REQUIRE( cobs_decode(&enc, 2, dec, sizeof(enc), &dec_len) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_decode(&enc, 2, dec, sizeof(enc), &dec_len) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 }

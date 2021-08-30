@@ -1,9 +1,9 @@
 #include "../cobs.h"
-#include "catch.hpp"
-
-#include <numeric>
+#include "doctest.h"
 
 #include <cstring>
+#include <numeric>
+#include <vector>
 
 using byte_t = unsigned char;
 using byte_vec_t = std::vector< byte_t >;
@@ -15,96 +15,96 @@ namespace {
   }
 }
 
-TEST_CASE("Inplace encoding validation", "[cobs_encode_inplace]") {
-  SECTION("Null buffer pointer") {
-    REQUIRE( cobs_encode_inplace(nullptr, 123) == COBS_RET_ERR_BAD_ARG );
+TEST_CASE("Inplace encoding validation") {
+  SUBCASE("Null buffer pointer") {
+    REQUIRE(cobs_encode_inplace(nullptr, 123) == COBS_RET_ERR_BAD_ARG);
   }
 
-  SECTION("Invalid buf_len") {
+  SUBCASE("Invalid buf_len") {
     char buf;
-    REQUIRE( cobs_encode_inplace(&buf, 0) == COBS_RET_ERR_BAD_ARG );
-    REQUIRE( cobs_encode_inplace(&buf, 1) == COBS_RET_ERR_BAD_ARG );
+    REQUIRE(cobs_encode_inplace(&buf, 0) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_encode_inplace(&buf, 1) == COBS_RET_ERR_BAD_ARG);
   }
 
-  SECTION("Invalid sentinel values") {
+  SUBCASE("Invalid sentinel values") {
     byte_vec_t buf{CSV - 1, CSV - 1};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
     buf = byte_vec_t{CSV, CSV - 1};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
     buf = byte_vec_t{CSV - 1, CSV};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 
-  SECTION("Nonzero run longer than 255") {
+  SUBCASE("Nonzero run longer than 255") {
     byte_vec_t buf{CSV};
     buf.insert(std::end(buf), 256, 0x01);
     buf.push_back(CSV);
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 
-  SECTION("Non-final run of 255 bytes") {
+  SUBCASE("Non-final run of 255 bytes") {
     byte_vec_t buf{CSV, 0x00};
     buf.insert(std::end(buf), 255, 1);
     buf.push_back(0x00);
     buf.push_back(CSV);
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 }
 
-TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
-  SECTION("Empty") {
+TEST_CASE("Inplace encoding") {
+  SUBCASE("Empty") {
     byte_vec_t buf{CSV, CSV};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
-    REQUIRE( buf == byte_vec_t{0x01, 0x00} );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{0x01, 0x00});
   }
 
-  SECTION("One nonzero byte") {
+  SUBCASE("One nonzero byte") {
     byte_vec_t buf{CSV, 0x01, CSV};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
-    REQUIRE( buf == byte_vec_t{0x02, 0x01, 0x00} );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{0x02, 0x01, 0x00});
   }
 
-  SECTION("One zero byte") {
+  SUBCASE("One zero byte") {
     byte_vec_t buf{CSV, 0x00, CSV};
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
-    REQUIRE( buf == byte_vec_t{0x01, 0x01, 0x00} );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{0x01, 0x01, 0x00});
   }
 
-  SECTION("Longest possible run of 254 bytes") {
+  SUBCASE("Longest possible run of 254 bytes") {
     byte_vec_t buf{CSV, 0x00};
     buf.insert(std::end(buf), 254, 1);
     buf.push_back(CSV);
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
   }
 
-  SECTION("Safe payload, all zero bytes") {
+  SUBCASE("Safe payload, all zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
     std::fill(std::begin(buf), std::end(buf), byte_t{0x00});
     buf[0] = CSV;
     buf[buf.size() - 1] = CSV;
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
 
     byte_vec_t expected(buf.size());
     std::fill(std::begin(expected), std::end(expected), byte_t{0x01});
     expected[expected.size() - 1] = 0x00;
-    REQUIRE( buf == expected );
+    REQUIRE(buf == expected);
   }
 
-  SECTION("Safe payload, no zero bytes") {
+  SUBCASE("Safe payload, no zero bytes") {
     byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
     std::iota(std::begin(buf), std::end(buf), byte_t{0x00});
     buf[0] = CSV;
     buf[buf.size() - 1] = CSV;
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
 
     byte_vec_t expected(buf.size());
     std::iota(std::begin(expected), std::end(expected), byte_t{0x00});
     expected[0] = 0xFF;
     expected[expected.size() - 1] = 0x00;
-    REQUIRE( buf == expected );
+    REQUIRE(buf == expected);
   }
 
-  SECTION("Unsafe payload with 254B jumps") {
+  SUBCASE("Unsafe payload with 254B jumps") {
     byte_vec_t buf{CSV};
     buf.insert(std::end(buf), 254, 0x01);
     buf.push_back(0x00);
@@ -112,7 +112,7 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     buf.push_back(0x00);
     buf.insert(std::end(buf), 254, 0x01);
     buf.push_back(CSV);
-    REQUIRE( cobs_encode_vec(buf) == COBS_RET_SUCCESS );
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
 
     byte_vec_t expected{0xFF};
     expected.insert(std::end(expected), 254, 0x01);
@@ -121,7 +121,7 @@ TEST_CASE("Inplace encoding", "[cobs_encode_inplace]") {
     expected.push_back(0xFF);
     expected.insert(std::end(expected), 254, 0x01);
     expected.push_back(0x00);
-    REQUIRE( buf == expected );
+    REQUIRE(buf == expected);
   }
 }
 
@@ -129,14 +129,14 @@ namespace {
 void verify_encode_inplace(unsigned char *inplace, unsigned payload_len) {
   byte_vec_t external(cobs_encode_max(payload_len));
   unsigned external_len;
-  REQUIRE( cobs_encode(inplace + 1,
-                       payload_len,
-                       external.data(),
-                       static_cast< unsigned >(external.size()),
-                       &external_len) == COBS_RET_SUCCESS );
+  REQUIRE(cobs_encode(inplace + 1,
+                      payload_len,
+                      external.data(),
+                      static_cast< unsigned >(external.size()),
+                      &external_len) == COBS_RET_SUCCESS);
 
-  REQUIRE( cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS );
-  REQUIRE( byte_vec_t(inplace, inplace + payload_len + 2) == external );
+  REQUIRE(cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS);
+  REQUIRE(byte_vec_t(inplace, inplace + payload_len + 2) == external);
 }
 
 void fill_inplace(unsigned char *inplace, unsigned payload_len, unsigned char f) {
@@ -146,31 +146,31 @@ void fill_inplace(unsigned char *inplace, unsigned payload_len, unsigned char f)
 }
 }
 
-TEST_CASE("Encode: Inplace == External", "[cobs_encode_inplace]") {
+TEST_CASE("Encode: Inplace == External") {
   unsigned char inplace[COBS_INPLACE_SAFE_BUFFER_SIZE];
 
-  SECTION("Fill with zeros") {
+  SUBCASE("Fill with zeros") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0x00);
       verify_encode_inplace(inplace, i);
     }
   }
 
-  SECTION("Fill with nonzeros") {
+  SUBCASE("Fill with nonzeros") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0x01);
       verify_encode_inplace(inplace, i);
     }
   }
 
-  SECTION("Fill with 0xFF") {
+  SUBCASE("Fill with 0xFF") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0xFF);
       verify_encode_inplace(inplace, i);
     }
   }
 
-  SECTION("Fill with zero/one pattern") {
+  SUBCASE("Fill with zero/one pattern") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
       inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
@@ -181,7 +181,7 @@ TEST_CASE("Encode: Inplace == External", "[cobs_encode_inplace]") {
     }
   }
 
-  SECTION("Fill with one/zero pattern") {
+  SUBCASE("Fill with one/zero pattern") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
       inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
