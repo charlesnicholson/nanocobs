@@ -13,7 +13,7 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
 
   unsigned patch = 0, cur = 1;
   while (cur < len - 1) {
-    if (!src[cur]) {
+    if (src[cur] == COBS_FRAME_DELIMETER) {
       unsigned const ofs = cur - patch;
       if (ofs > 255) { return COBS_RET_ERR_BAD_PAYLOAD; }
       src[patch] = (cobs_byte_t)ofs;
@@ -33,7 +33,7 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
 
   cobs_byte_t *const src = (cobs_byte_t *)buf;
   unsigned ofs, cur = 0;
-  while ((ofs = src[cur]) != 0) {
+  while ((ofs = src[cur]) != COBS_FRAME_DELIMETER) {
     src[cur] = 0;
     cur += ofs;
     if (cur > len) { return COBS_RET_ERR_BAD_PAYLOAD; }
@@ -84,7 +84,7 @@ cobs_ret_t cobs_encode(void const *dec,
   }
 
   dst[dst_code_idx] = code;
-  dst[dst_idx++] = 0;
+  dst[dst_idx++] = COBS_FRAME_DELIMETER;
   *out_enc_len = dst_idx;
   return COBS_RET_SUCCESS;
 }
@@ -100,7 +100,9 @@ cobs_ret_t cobs_decode(void const *enc,
   cobs_byte_t const *const src = (cobs_byte_t const *)enc;
   cobs_byte_t *const dst = (cobs_byte_t *)out_dec;
 
-  if (!src[0] || src[enc_len - 1]) { return COBS_RET_ERR_BAD_PAYLOAD; }
+  if ((src[0] == COBS_FRAME_DELIMETER) || (src[enc_len - 1] != COBS_FRAME_DELIMETER)) {
+    return COBS_RET_ERR_BAD_PAYLOAD;
+  }
 
   unsigned src_idx = 0, dst_idx = 0;
 
