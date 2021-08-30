@@ -2,7 +2,7 @@
 
 `nanocobs` is a C99 implementation of the [Consistent Overhead Byte Stuffing](https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing) ("COBS") algorithm, defined in the [paper](http://www.stuartcheshire.org/papers/COBSforToN.pdf) by Stuart Cheshire and Mary Baker.
 
-Users can encode and decode data in-place or into separate target buffers. The `nanocobs` runtime requires no extra memory overhead. No standard library headers are included, and no standard library functions are called.
+Users can encode and decode data in-place or into separate target buffers. Encoding can be incremental; users can encode multiple small buffers (e.g. header, then payloads) into one target. The `nanocobs` runtime requires no extra memory overhead. No standard library headers are included, and no standard library functions are called.
 
 ## Rationale
 
@@ -18,7 +18,9 @@ You probably only need `nanocobs` for things like inter-chip communications prot
 
 There are a few out there, but I haven't seen any that optionally encode in-place. This can be handy if you're memory-constrained and would enjoy CPU + RAM optimizations that come from using small frames. Also, the cost of in-place decoding is only as expensive as the number of zeroes in your payload; exploiting that if you're designing your own protocols can make decoding very fast.
 
-Also I didn't see as many unit tests as I'd have liked in the other libraries, especially around invalid payload handling. Framing protocols make for lovely attack surfaces, and malicious COBS frames can easily instruct decoders to jump outside of the frame itself.
+None of the other COBS implementations I saw supported incremental encoding. It's often the case in communication stacks that a layer above the link provides a tightly-sized payload buffer, and the link has to encode both a header _and_ this payload into a single frame. That requires an extra buffer for assembling which then immediately gets encoded into yet another buffer. With incremental encoding, a header structure can be created on the stack and encoded into the target, then the payload can follow into the same target.
+
+Finally, I didn't see as many unit tests as I'd have liked in the other libraries, especially around invalid payload handling. Framing protocols make for lovely attack surfaces, and malicious COBS frames can easily instruct decoders to jump outside of the frame itself.
 
 ## Metrics
 
@@ -59,6 +61,10 @@ if (result == COBS_RET_SUCCESS) {
   // encoding failed, look to 'result' for details.
 }
 ```
+
+### Incremental Encoding
+
+TODO: write this
 
 ### Encoding In-Place
 
