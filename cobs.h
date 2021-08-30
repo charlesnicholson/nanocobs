@@ -8,6 +8,11 @@ typedef enum {
 } cobs_ret_t;
 
 enum {
+  // All COBS frames end with this value. If you're scanning a data source
+  // for frame delimiters, the presence of this zero byte indicates the
+  // completion of a frame.
+  COBS_FRAME_DELIMETER = 0x00,
+
   // In-place encoding mandatory placeholder byte values.
   COBS_INPLACE_SENTINEL_VALUE = 0x5A,
 
