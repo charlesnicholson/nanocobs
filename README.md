@@ -27,7 +27,6 @@ It's pretty small.
 ❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
 ❯ arm-none-eabi-nm --print-size --size-sort cobs.o
 
-0000007a 00000018 T cobs_encode_max      (24 bytes)
 00000048 00000032 T cobs_decode_inplace  (50 bytes)
 00000000 00000048 T cobs_encode_inplace  (72 bytes)
 00000092 0000007a T cobs_encode          (122 bytes)
