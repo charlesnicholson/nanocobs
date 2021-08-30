@@ -127,7 +127,7 @@ TEST_CASE("Inplace encoding") {
 
 namespace {
 void verify_encode_inplace(unsigned char *inplace, unsigned payload_len) {
-  byte_vec_t external(cobs_encode_max(payload_len));
+  byte_vec_t external(COBS_ENCODE_MAX(payload_len));
   unsigned external_len;
   REQUIRE(cobs_encode(inplace + 1,
                       payload_len,
