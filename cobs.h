@@ -25,6 +25,18 @@ extern "C" {
 #endif
 
 
+// COBS_ENCODE_MAX
+//
+// Returns the maximum possible size in bytes of the buffer required to encode
+// a buffer of length |dec_len|. Cannot fail. Defined as a macro to facilitate
+// compile-time sizing of buffers.
+//
+// Note: DECODED_LEN is evaluated multiple times; don't call with mutating
+// expressions! e.g. Don't do "COBS_ENCODE_MAX(i++)".
+#define COBS_ENCODE_MAX(DECODED_LEN) \
+  (1 + (DECODED_LEN) + (((DECODED_LEN) + 253) / 254) + ((DECODED_LEN) == 0))
+
+
 // cobs_encode_inplace
 //
 // Encode in-place the contents of the provided buffer |buf| of length |len|.
@@ -68,13 +80,6 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len);
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are
 // left indeterminate and must not be relied on to be fully encoded or decoded.
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned len);
-
-
-// cobs_encode_max
-//
-// Returns the maximum possible size in bytes of the buffer required to encode
-// a buffer of length |dec_len|. Cannot fail.
-unsigned cobs_encode_max(unsigned dec_len);
 
 
 // cobs_encode

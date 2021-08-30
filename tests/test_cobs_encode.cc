@@ -98,7 +98,7 @@ TEST_CASE("Simple encodings") {
 
 namespace {
 byte_vec_t encode(byte_vec_t const &decoded) {
-  byte_vec_t enc(cobs_encode_max(static_cast< unsigned >(decoded.size())));
+  byte_vec_t enc(COBS_ENCODE_MAX(static_cast< unsigned >(decoded.size())));
   unsigned enc_len;
   REQUIRE(cobs_encode(decoded.data(),
                       static_cast< unsigned >(decoded.size()),
