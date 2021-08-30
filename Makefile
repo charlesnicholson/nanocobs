@@ -28,7 +28,7 @@ ifeq ($(OS),Darwin)
 CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 endif
 
-CPPFLAGS += -Wno-c++98-compat
+CPPFLAGS += -Wno-c++98-compat -Wno-padded
 CFLAGS = --std=c99
 CXXFLAGS = --std=c++17
 
