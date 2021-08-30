@@ -7,7 +7,6 @@ typedef enum {
   COBS_RET_ERR_EXHAUSTED
 } cobs_ret_t;
 
-typedef unsigned char cobs_byte_t;
 
 enum {
   // All COBS frames end with this value. If you're scanning a data source

@@ -2,6 +2,8 @@
 
 #define COBS_ISV COBS_INPLACE_SENTINEL_VALUE
 
+typedef unsigned char cobs_byte_t;
+
 
 cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
   if (!buf || (len < 2)) { return COBS_RET_ERR_BAD_ARG; }
