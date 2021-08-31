@@ -128,6 +128,7 @@ typedef struct cobs_enc_ctx {
   unsigned cur;
   unsigned code_idx;
   unsigned code;
+  int need_advance;
 } cobs_enc_ctx_t;
 
 

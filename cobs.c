@@ -78,6 +78,7 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc,
   out_ctx->cur = 1;
   out_ctx->code = 1;
   out_ctx->code_idx = 0;
+  out_ctx->need_advance = 0;
   return COBS_RET_SUCCESS;
 }
 
@@ -92,10 +93,16 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
 
   unsigned dst_code_idx = ctx->code_idx;
   unsigned code = ctx->code;
+  int need_advance = ctx->need_advance;
 
   cobs_byte_t const *const src = (cobs_byte_t const *)dec;
   cobs_byte_t *const dst = (cobs_byte_t *)ctx->dst;
   unsigned src_idx = 0;
+
+  if (need_advance) {
+    if (++dst_idx >= enc_max) { return COBS_RET_ERR_EXHAUSTED; }
+    need_advance = 0;
+  }
 
   while (dec_len--) {
     cobs_byte_t const byte = src[src_idx];
@@ -112,6 +119,8 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
 
       if ((byte == 0) || dec_len) {
         if (++dst_idx >= enc_max) { return COBS_RET_ERR_EXHAUSTED; }
+      } else {
+        need_advance = !dec_len;
       }
     }
     ++src_idx;
@@ -120,6 +129,7 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
   ctx->cur = dst_idx;
   ctx->code = code;
   ctx->code_idx = dst_code_idx;
+  ctx->need_advance = need_advance;
   return COBS_RET_SUCCESS;
 }
 
