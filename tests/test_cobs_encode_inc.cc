@@ -230,7 +230,7 @@ TEST_CASE("Single/multi-encode equivalences") {
   }
 
   SUBCASE("One byte at a time, all zero payload") {
-    std::fill(std::begin(dec_buf), std::end(dec_buf), 0);
+    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{0});
     for (auto i = 0u; i < 1500; ++i) { dec_buf[i] = i & 0xFF; }
     dec_buf.resize(1500);
     byte_vec_t const single = encode_single(dec_buf);
