@@ -1,9 +1,7 @@
 #include "../cobs.h"
+#include "byte_vec.h"
 #include "doctest.h"
 
-#include <vector>
-
-using byte_vec_t = std::vector< unsigned char >;
 
 // http://www.stuartcheshire.org/papers/COBSforToN.pdf
 TEST_CASE("COBS paper examples") {
