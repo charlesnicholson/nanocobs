@@ -276,7 +276,7 @@ TEST_CASE("Single/multi-encode equivalences") {
 
     unsigned const n = 400;
     dec_buf.resize(n);
-    std::iota(std::begin(dec_buf), std::end(dec_buf), 0x01);
+    std::iota(std::begin(dec_buf), std::end(dec_buf), byte_t{0x01});
     dec_buf[4] = 0x00;
     dec_buf[27] = 0x00;
     dec_buf[45] = 0x00;
