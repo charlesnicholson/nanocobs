@@ -1,11 +1,9 @@
 #include "../cobs.h"
+#include "byte_vec.h"
 #include "doctest.h"
 
 #include <numeric>
-#include <vector>
 
-using byte_t = unsigned char;
-using byte_vec_t = std::vector< byte_t >;
 static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
 
 namespace {

@@ -1,10 +1,8 @@
 #include "../cobs.h"
+#include "byte_vec.h"
 #include "doctest.h"
 
-#include <vector>
 #include <cstring>
-
-using byte_vec_t = std::vector< unsigned char >;
 
 TEST_CASE("Encoding validation") {
   unsigned char enc[32], dec[32];

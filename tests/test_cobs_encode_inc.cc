@@ -1,15 +1,12 @@
 #include "../cobs.h"
+#include "byte_vec.h"
 #include "doctest.h"
 
 #include <algorithm>
 #include <iomanip>
 #include <numeric>
 #include <sstream>
-#include <vector>
 
-
-using byte_t = unsigned char;
-using byte_vec_t = std::vector<byte_t>;
 
 TEST_CASE("cobs_encode_inc_begin") {
   cobs_enc_ctx_t ctx;
