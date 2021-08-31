@@ -7,11 +7,12 @@ typedef enum {
   COBS_RET_ERR_EXHAUSTED
 } cobs_ret_t;
 
+
 enum {
   // All COBS frames end with this value. If you're scanning a data source
   // for frame delimiters, the presence of this zero byte indicates the
   // completion of a frame.
-  COBS_FRAME_DELIMETER = 0x00,
+  COBS_FRAME_DELIMITER = 0x00,
 
   // In-place encoding mandatory placeholder byte values.
   COBS_INPLACE_SENTINEL_VALUE = 0x5A,
@@ -82,23 +83,6 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len);
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned len);
 
 
-// cobs_encode
-//
-// Encode |dec_len| decoded bytes from |dec| into |out_enc|, storing the encoded
-// length in |out_enc_len|. Returns COBS_RET_SUCCESS on successful encoding.
-//
-// If any of the input pointers are null, or if any of the lengths are invalid,
-// the function will fail with COBS_RET_ERR_BAD_ARG.
-//
-// If the encoding exceeds |enc_max| bytes, the function will fail with
-// COBS_RET_ERR_EXHAUSTED.
-cobs_ret_t cobs_encode(void const *dec,
-                       unsigned dec_len,
-                       void *out_enc,
-                       unsigned enc_max,
-                       unsigned *out_enc_len);
-
-
 // cobs_decode
 //
 // Decode |enc_len| encoded bytes from |enc| into |out_dec|, storing the decoded
@@ -117,6 +101,86 @@ cobs_ret_t cobs_decode(void const *enc,
                        void *out_dec,
                        unsigned dec_max,
                        unsigned *out_dec_len);
+
+
+// cobs_encode
+//
+// Encode |dec_len| decoded bytes from |dec| into |out_enc|, storing the encoded
+// length in |out_enc_len|. Returns COBS_RET_SUCCESS on successful encoding.
+//
+// If any of the input pointers are null, or if any of the lengths are invalid,
+// the function will fail with COBS_RET_ERR_BAD_ARG.
+//
+// If the encoding exceeds |enc_max| bytes, the function will fail with
+// COBS_RET_ERR_EXHAUSTED.
+cobs_ret_t cobs_encode(void const *dec,
+                       unsigned dec_len,
+                       void *out_enc,
+                       unsigned enc_max,
+                       unsigned *out_enc_len);
+
+
+// Incremental encoding API
+
+typedef struct cobs_enc_ctx {
+  void *dst;
+  unsigned dst_max;
+  unsigned cur;
+  unsigned code_idx;
+  unsigned code;
+  int need_advance;
+} cobs_enc_ctx_t;
+
+
+// cobs_encode_inc_begin
+//
+// Begin an incremental encoding of data into |out_enc|. The intermediate
+// encoding state is stored in |out_ctx|, which can then be passed into
+// calls to cobs_encode_inc. Returns COBS_RET_SUCCESS if |out_ctx| can be
+// used in future calls to cobs_encode_inc.
+//
+// If |out_enc| or |out_ctx| are null, or if |enc_max| is not large enough to
+// hold the smallest possible encoding, the function will return
+// COBS_RET_ERR_BAD_ARG.
+cobs_ret_t cobs_encode_inc_begin(void *out_enc,
+                                 unsigned enc_max,
+                                 cobs_enc_ctx_t *out_ctx);
+
+
+// cobs_encode_inc
+//
+// Continue an encoding in progress with the new |dec| buffer of length |dec_len|.
+// Encodes |dec_len| decoded bytes from |dec| into the buffer that |ctx| was
+// initialized with in cobs_encode_inc_begin.
+//
+// If any of the input pointers are null, or |dec_len| is zero, the function
+// will fail with COBS_RET_ERR_BAD_ARG.
+//
+// If the contents pointed to by |dec| can not be encoded in the remaining
+// available buffer space, the function returns COBS_RET_ERR_EXHAUSTED. In
+// this case, |ctx| remains unchanged and incremental encoding can be attempted
+// again with different data, or finished with cobs_encode_inc_end.
+//
+// If the contents of |dec| are successfully encoded, the function returns
+// COBS_RET_SUCCESS.
+cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
+                           void const *dec,
+                           unsigned dec_len);
+
+
+// cobs_encode_inc_end
+//
+// Finish an incremental encoding by writing the final code and delimiter.
+// Returns COBS_RET_SUCCESS on success, and no further calls to
+// cobs_encode_inc or cobs_encode_inc_end can be safely made until |ctx|
+// is re-initialized via a new call to cobs_encode_inc_begin.
+//
+// The final encoded length is written to |out_enc_len|, and the buffer
+// passed to cobs_encode_inc_begin holds the full COBS-encoded frame.
+//
+// If null pointers are provided, the function returns COBS_RET_ERR_BAD_ARG.
+cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, unsigned *out_enc_len);
+
 
 #ifdef __cplusplus
 }

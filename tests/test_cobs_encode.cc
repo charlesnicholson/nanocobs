@@ -21,8 +21,8 @@ TEST_CASE("Encoding validation") {
   SUBCASE("Invalid enc_max") {
     REQUIRE(cobs_encode(dec, dec_n, enc, 0, &enc_len) == COBS_RET_ERR_BAD_ARG);
     REQUIRE(cobs_encode(dec, dec_n, enc, 1, &enc_len) == COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_encode(dec, dec_n, enc, dec_n - 2, &enc_len) == COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_encode(dec, dec_n, enc, dec_n - 1, &enc_len) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_encode(dec, dec_n, enc, dec_n - 2, &enc_len) == COBS_RET_ERR_EXHAUSTED);
+    REQUIRE(cobs_encode(dec, dec_n, enc, dec_n - 1, &enc_len) == COBS_RET_ERR_EXHAUSTED);
   }
 }
 
