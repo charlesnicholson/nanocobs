@@ -64,7 +64,31 @@ if (result == COBS_RET_SUCCESS) {
 
 ### Incremental Encoding
 
-TODO: write this
+Sometimes it's helpful to be able to encode multiple separate buffers into one target. To do this, use the `cobs_encode_inc` family of functions: initialize a `cobx_enc_ctx_t` in `cobs_encode_inc_begin`, then call `cobs_encode_inc` multiple times, and finish encoding with `cobs_encode_inc_end`.
+
+```
+cobs_enc_ctx_t ctx;
+char encoded[128];
+cobs_ret_t r = cobs_encode_inc_begin(encoded, 128, &ctx);
+if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+
+char header[8];
+unsigned const header_len = get_header_from_somewhere(header);
+r = cobs_encode_inc(&ctx, header, header_len); // encode the header
+if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+
+char const *payload;
+unsigned const payload_len = get_payload_from_somewhere(&payload);
+r = cobs_encode_inc(&ctx, payload, payload_len); // encode the payload
+if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+
+unsigned encoded_len;
+r = cobs_encode_inc_end(&ctx, &encoded_len);
+if (r != COBS_RET_SUCCESS) { /* handle your error, return / assert, whatever */ }
+
+/* At this point, |encoded| contains the encoded header and payload.
+   |encoded_len| contains the length of the encoded buffer. */
+```
 
 ### Encoding In-Place
 
@@ -130,8 +154,6 @@ if (result == COBS_RET_SUCCESS) {
 ```
 ## Developing
 
-`nanocobs` uses [catch2](https://github.com/catchorg/Catch2) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
-
-Also, it's really amazing how long it takes to compile the Catch2 amalgamated file, thanks C++!
+`nanocobs` uses [doctest](https://github.com/onqtam/doctest) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
 
 The presubmit workflow compiles `nanocobs` on macOS, Linux (gcc) 32/64, Windows (msvc) 32/64. It also builds weekly against a fresh docker image so I know when newer stricter compilers break it.
