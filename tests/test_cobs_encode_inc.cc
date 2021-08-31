@@ -8,6 +8,9 @@
 #include <vector>
 
 
+using byte_t = unsigned char;
+using byte_vec_t = std::vector<byte_t>;
+
 TEST_CASE("cobs_encode_inc_begin") {
   cobs_enc_ctx_t ctx;
   std::vector<unsigned char> buf(1024);
@@ -79,7 +82,7 @@ TEST_CASE("cobs_encode_inc") {
   }
 
   SUBCASE("Nonzero bytes increment code") {
-    std::fill(std::begin(dec_buf), std::end(dec_buf), 1);
+    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{1});
     REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), 1) == COBS_RET_SUCCESS);
     REQUIRE(ctx.code == 2);
     REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), 13) == COBS_RET_SUCCESS);
@@ -122,6 +125,7 @@ TEST_CASE("cobs_encode_inc") {
   }
 }
 
+
 TEST_CASE("cobs_encode_inc_end") {
   cobs_enc_ctx_t ctx;
   unsigned const enc_max{1024};
@@ -156,9 +160,6 @@ TEST_CASE("cobs_encode_inc_end") {
   }
 }
 
-
-using byte_t = unsigned char;
-using byte_vec_t = std::vector<byte_t>;
 
 namespace {
 byte_vec_t encode_single(byte_vec_t const &decoded) {
