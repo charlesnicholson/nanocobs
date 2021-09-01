@@ -24,7 +24,7 @@ Finally, I didn't see as many unit tests as I'd have liked in the other librarie
 
 ## Metrics
 
-It's pretty small.
+It's pretty small, and you probably need either `cobs_[en|de]code_inplace` _or_ `cobs_[en|de]code[_inc*]`, but not both.
 ```
 ❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
 ❯ arm-none-eabi-nm --print-size --size-sort cobs.o
