@@ -50,6 +50,12 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc(&ctx, nullptr, 16) == COBS_RET_ERR_BAD_ARG);
   }
 
+  SUBCASE("zero-byte write") {
+    REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), 0) == COBS_RET_SUCCESS);
+    ctx.cur = ctx.dst_max - 1;
+    REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), 0) == COBS_RET_SUCCESS);
+  }
+
   SUBCASE("exhausted") {
     ctx.cur = ctx.dst_max - 1;
     REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), 1) == COBS_RET_ERR_EXHAUSTED);
