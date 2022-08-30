@@ -89,7 +89,7 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
   unsigned dst_idx = ctx->cur;
   unsigned const enc_max = ctx->dst_max;
   if ((enc_max - dst_idx) < dec_len) { return COBS_RET_ERR_EXHAUSTED; }
-  //if (!dec_len) { return COBS_RET_SUCCESS; }
+  if (!dec_len) { return COBS_RET_SUCCESS; }
 
   unsigned dst_code_idx = ctx->code_idx;
   unsigned code = ctx->code;
