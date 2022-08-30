@@ -8,6 +8,23 @@ on:
     - cron: '0 2 * * 0'  # Weekly
 
 jobs:
+  sanitize:
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build
+        run: COBS_SANITIZE=1 make -j
+
   linux-gcc:
     runs-on: ubuntu-latest
 
