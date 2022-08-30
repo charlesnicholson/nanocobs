@@ -38,7 +38,7 @@ CFLAGS = --std=c99
 CXXFLAGS = --std=c++17
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
-	$(CXX) $(OBJS) $(LDFLAGS) $(LDFLAGS_SAN) $(BUILD_DIR)/cobs.c.o -o $@
+	$(CXX) $(LDFLAGS) $(LDFLAGS_SAN) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
 
 $(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
