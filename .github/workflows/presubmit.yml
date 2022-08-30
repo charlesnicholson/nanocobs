@@ -20,6 +20,10 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    env:
+      CC: /usr/bin/clang
+      CXX: /usr/bin/clang++
+
     steps:
       - uses: actions/checkout@v2
       - name: Build
