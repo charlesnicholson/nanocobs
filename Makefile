@@ -1,5 +1,4 @@
-SRCS := cobs.c \
-		tests/test_cobs_encode_max.cc \
+SRCS := tests/test_cobs_encode_max.cc \
 		tests/test_cobs_encode.cc \
 		tests/test_cobs_encode_inc.cc \
 		tests/test_cobs_encode_inplace.cc \
@@ -30,11 +29,15 @@ CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
 endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
+LDFLAGS +=  -fsanitize=undefined,address
 CFLAGS = --std=c99
 CXXFLAGS = --std=c++17
 
-$(BUILD_DIR)/cobs_unittests: $(OBJS) Makefile
-	$(CXX) $(OBJS) -o $@ $(LDFLAGS)
+$(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
+	$(CXX) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@ $(LDFLAGS)
+
+$(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -fsanitize=undefined,address -c $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
