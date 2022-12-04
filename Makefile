@@ -12,6 +12,10 @@ BUILD_DIR := build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
+COMPILER_VERSION := $(shell $(CXX) --version)
+
+CFLAGS = --std=c99
+CXXFLAGS = --std=c++17
 
 CPPFLAGS += -MMD -MP -Os -g
 
@@ -29,13 +33,17 @@ endif
 
 CPPFLAGS += -Wall -Werror -Wextra
 
-ifeq ($(OS),Darwin)
-CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
+ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
+CPPFLAGS += -Weverything \
+			-Wno-poison-system-directories \
+			-Wno-format-pedantic \
+			-Wno-c++98-compat-bind-to-temporary-copy
+CFLAGS += -Wno-declaration-after-statement
+else
+CPPFLAGS += -Wconversion
 endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
-CFLAGS = --std=c99
-CXXFLAGS = --std=c++17
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
 	$(CXX) $(LDFLAGS) $(LDFLAGS_SAN) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
