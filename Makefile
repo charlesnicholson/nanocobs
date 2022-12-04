@@ -12,6 +12,7 @@ BUILD_DIR := build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
 DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
+COMPILER_VERSION := $(shell $(CXX) --version)
 
 CPPFLAGS += -MMD -MP -Os -g
 
@@ -29,8 +30,11 @@ endif
 
 CPPFLAGS += -Wall -Werror -Wextra
 
-ifeq ($(OS),Darwin)
-CPPFLAGS += -Weverything -Wno-poison-system-directories -Wno-format-pedantic
+ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
+CPPFLAGS += -Weverything \
+			-Wno-poison-system-directories \
+			-Wno-format-pedantic \
+			-Wno-c++98-compat-bind-to-temporary-copy
 endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
