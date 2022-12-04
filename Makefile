@@ -39,6 +39,8 @@ CPPFLAGS += -Weverything \
 			-Wno-format-pedantic \
 			-Wno-c++98-compat-bind-to-temporary-copy
 CFLAGS += -Wno-declaration-after-statement
+else
+CPPFLAGS += -Wconversion
 endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
