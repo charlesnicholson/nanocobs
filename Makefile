@@ -14,6 +14,9 @@ DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
+CFLAGS = --std=c99
+CXXFLAGS = --std=c++17
+
 CPPFLAGS += -MMD -MP -Os -g
 
 ifeq ($(OS),Linux)
@@ -35,11 +38,10 @@ CPPFLAGS += -Weverything \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
 			-Wno-c++98-compat-bind-to-temporary-copy
+CFLAGS += -Wno-declaration-after-statement
 endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
-CFLAGS = --std=c99
-CXXFLAGS = --std=c++17
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
 	$(CXX) $(LDFLAGS) $(LDFLAGS_SAN) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
