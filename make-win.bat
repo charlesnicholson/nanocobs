@@ -1,4 +1,4 @@
-cl.exe /W4 /WX /EHsc ^
+cl.exe /W4 /WX /MP /EHsc ^
     cobs.c ^
     tests/test_cobs_decode.cc ^
     tests/test_cobs_decode_inplace.cc ^
