@@ -36,6 +36,10 @@ TEST_CASE("Inplace decoding validation") {
     REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
     buf = byte_vec_t{0x01, 0x00, 0x00}; // land on an interior 0x00
     REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
+    buf = byte_vec_t{0x02, 0x00, 0x00}; // jump over an interior 0x00
+    REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
+    buf = byte_vec_t{0x04, 0x01, 0x00, 0x01, 0x00}; // jump over interior 0x00
+    REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 }
 

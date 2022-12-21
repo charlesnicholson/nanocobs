@@ -1,16 +1,26 @@
 #include "../cobs.h"
+#include "byte_vec.h"
 #include "doctest.h"
 
-#include <cstring>
-
 TEST_CASE("Decoding validation") {
-  unsigned char enc[32], dec[32];
+  unsigned char dec[32];
   unsigned dec_len;
 
-  SUBCASE("Invalid payload") {
-    // first byte jumps past end
-    enc[0] = 3;
-    enc[1] = 0;
-    REQUIRE(cobs_decode(&enc, 2, dec, sizeof(enc), &dec_len) == COBS_RET_ERR_BAD_PAYLOAD);
+  SUBCASE("Invalid payload: jump past end") {
+    byte_vec_t enc{3, 0};
+    REQUIRE(cobs_decode(enc.data(),
+                        unsigned(enc.size()),
+                        dec,
+                        sizeof(dec),
+                        &dec_len) == COBS_RET_ERR_BAD_PAYLOAD);
+  }
+
+  SUBCASE("Invalid payload: jump over internal zeroes") {
+    byte_vec_t enc{5, 1, 0, 0, 1, 0};
+    REQUIRE(cobs_decode(enc.data(),
+                        unsigned(enc.size()),
+                        dec,
+                        sizeof(dec),
+                        &dec_len) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 }
