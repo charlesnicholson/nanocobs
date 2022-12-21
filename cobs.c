@@ -4,7 +4,6 @@
 
 typedef unsigned char cobs_byte_t;
 
-
 cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
   if (!buf || (len < 2)) { return COBS_RET_ERR_BAD_ARG; }
 
@@ -30,7 +29,6 @@ cobs_ret_t cobs_encode_inplace(void *buf, unsigned len) {
   return COBS_RET_SUCCESS;
 }
 
-
 cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
   if (!buf || (len < 2)) { return COBS_RET_ERR_BAD_ARG; }
 
@@ -38,6 +36,9 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
   unsigned ofs, cur = 0;
   while (cur < len && ((ofs = src[cur]) != COBS_FRAME_DELIMITER)) {
     src[cur] = 0;
+    for (unsigned i = 1; i < ofs; ++i) {
+      if (src[cur + i] == 0) { return COBS_RET_ERR_BAD_PAYLOAD; }
+    }
     cur += ofs;
   }
 
@@ -46,7 +47,6 @@ cobs_ret_t cobs_decode_inplace(void *buf, unsigned const len) {
   src[len - 1] = COBS_ISV;
   return COBS_RET_SUCCESS;
 }
-
 
 cobs_ret_t cobs_encode(void const *dec,
                        unsigned dec_len,
@@ -65,7 +65,6 @@ cobs_ret_t cobs_encode(void const *dec,
   return r;
 }
 
-
 cobs_ret_t cobs_encode_inc_begin(void *out_enc,
                                  unsigned enc_max,
                                  cobs_enc_ctx_t *out_ctx) {
@@ -80,7 +79,6 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc,
   out_ctx->need_advance = 0;
   return COBS_RET_SUCCESS;
 }
-
 
 cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
                            void const *dec,
@@ -133,7 +131,6 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx,
   return COBS_RET_SUCCESS;
 }
 
-
 cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, unsigned *out_enc_len) {
   if (!ctx || !out_enc_len) { return COBS_RET_ERR_BAD_ARG; }
 
@@ -144,7 +141,6 @@ cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, unsigned *out_enc_len) {
   *out_enc_len = cur;
   return COBS_RET_SUCCESS;
 }
-
 
 cobs_ret_t cobs_decode(void const *enc,
                        unsigned enc_len,
@@ -170,6 +166,7 @@ cobs_ret_t cobs_decode(void const *enc,
 
     if ((dst_idx + code - 1) > dec_max) { return COBS_RET_ERR_EXHAUSTED; }
     for (unsigned i = 0; i < code - 1; ++i) {
+      if (src[src_idx] == 0) { return COBS_RET_ERR_BAD_PAYLOAD; }
       dst[dst_idx++] = src[src_idx++];
     }
 
