@@ -29,6 +29,23 @@ jobs:
       - name: Build
         run: COBS_SANITIZE=1 make -j
 
+  arm-cm4:
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build
+        run: arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
+
   linux-gcc:
     runs-on: ubuntu-latest
 
