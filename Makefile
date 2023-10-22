@@ -35,6 +35,8 @@ CPPFLAGS += -Wall -Werror -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
 CPPFLAGS += -Weverything \
+			-Wno-unknown-warning-option \
+			-Wno-unsafe-buffer-usage \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
 			-Wno-c++98-compat-bind-to-temporary-copy
