@@ -1,0 +1,37 @@
+---
+Language: Cpp
+BasedOnStyle: Google
+IndentWidth: 2
+ContinuationIndentWidth: 4
+PPIndentWidth: 2
+ColumnLimit: 91
+IndentCaseLabels: true
+Cpp11BracedListStyle: false
+IncludeBlocks: Preserve
+
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: DontAlign
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortLoopsOnASingleLine: true
+AllowAllArgumentsOnNextLine: false
+AllowAllParametersOfDeclarationOnNextLine: false
+AlwaysBreakAfterReturnType: None
+
+BinPackArguments: false
+BinPackParameters: false
+
+BitFieldColonSpacing: Both
+
+InsertTrailingCommas: Wrapped
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+MaxEmptyLinesToKeep: 1
+
+ReflowComments: true
+SpaceAfterCStyleCast: false
+StatementMacros: ['_Pragma']
+---
+Language: Proto
+BasedOnStyle: Google
