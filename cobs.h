@@ -30,13 +30,18 @@ enum {
 // COBS_ENCODE_MAX
 //
 // Returns the maximum possible size in bytes of the buffer required to encode a buffer of
-// length |dec_len|. Cannot fail. Defined as a macro to facilitate compile-time sizing of
-// buffers.
-//
-// Note: DECODED_LEN is evaluated multiple times; don't call with mutating expressions!
+// length |dec_len|. Cannot fail. Defined as macro/constexpr to facilitate compile-time
+// sizing of buffers.
+#ifdef __cplusplus
+inline constexpr size_t COBS_ENCODE_MAX(size_t DECODED_LEN) {
+  return 1 + DECODED_LEN + ((DECODED_LEN + 253) / 254) + (DECODED_LEN == 0);
+}
+#else
+// In C, DECODED_LEN is evaluated multiple times; don't call with mutating expressions!
 // e.g. Don't do "COBS_ENCODE_MAX(i++)".
 #define COBS_ENCODE_MAX(DECODED_LEN) \
   (1 + (DECODED_LEN) + (((DECODED_LEN) + 253) / 254) + ((DECODED_LEN) == 0))
+#endif
 
 // cobs_encode_inplace
 //

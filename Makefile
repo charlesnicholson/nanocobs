@@ -1,4 +1,5 @@
-SRCS := tests/test_cobs_encode_max.cc \
+SRCS := tests/cobs_encode_max_c.c \
+		tests/test_cobs_encode_max.cc \
 		tests/test_cobs_encode.cc \
 		tests/test_cobs_encode_inc.cc \
 		tests/test_cobs_encode_inplace.cc \
