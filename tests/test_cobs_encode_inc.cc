@@ -164,16 +164,13 @@ TEST_CASE("cobs_encode_inc_end") {
 }
 
 namespace {
-byte_vec_t encode_single(byte_vec_t const &decoded) {
-  byte_vec_t encoded(COBS_ENCODE_MAX(decoded.size()));
+byte_vec_t encode_single(byte_vec_t const &dec) {
+  byte_vec_t enc(COBS_ENCODE_MAX(dec.size()));
   size_t enc_len;
-  REQUIRE(cobs_encode(decoded.data(),
-                      decoded.size(),
-                      encoded.data(),
-                      encoded.size(),
-                      &enc_len) == COBS_RET_SUCCESS);
-  encoded.resize(enc_len);
-  return encoded;
+  REQUIRE(cobs_encode(dec.data(), dec.size(), enc.data(), enc.size(), &enc_len) ==
+          COBS_RET_SUCCESS);
+  enc.resize(enc_len);
+  return enc;
 }
 
 byte_vec_t encode_incremental(byte_vec_t const &decoded, size_t chunk_size) {
@@ -183,9 +180,8 @@ byte_vec_t encode_incremental(byte_vec_t const &decoded, size_t chunk_size) {
   REQUIRE(cobs_encode_inc_begin(encoded.data(), encoded.size(), &ctx) == COBS_RET_SUCCESS);
 
   size_t cur = 0;
-  size_t const n{ decoded.size() };
-  while (cur < n) {
-    size_t const encode_size{ std::min(chunk_size, n - cur) };
+  while (cur < decoded.size()) {
+    size_t const encode_size{ std::min(chunk_size, decoded.size() - cur) };
     REQUIRE(cobs_encode_inc(&ctx, &decoded[cur], encode_size) == COBS_RET_SUCCESS);
     cur += encode_size;
   }
