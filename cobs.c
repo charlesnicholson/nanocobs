@@ -183,6 +183,28 @@ cobs_ret_t cobs_decode(void const *enc,
     return COBS_RET_ERR_BAD_ARG;
   }
 
+  cobs_decode_args_t args = {
+    .src = enc,
+    .dst = out_dec,
+    .src_max = enc_len,
+    .dst_max = dec_max,
+    .src_len = 0,
+    .dst_len = 0,
+    .decode_complete = 0,
+  };
+
+  cobs_decode_ctx_t ctx;
+  cobs_ret_t r;
+  if ((r = cobs_decode_inc_begin(&ctx)) != COBS_RET_SUCCESS) {
+    return r;
+  }
+  if ((r = cobs_decode_inc(&ctx, &args)) != COBS_RET_SUCCESS) {
+    return r;
+  }
+  *out_dec_len = args.dst_len;
+  return COBS_RET_SUCCESS;
+
+  /*
   cobs_byte_t const *const src = (cobs_byte_t const *)enc;
   cobs_byte_t *const dst = (cobs_byte_t *)out_dec;
 
@@ -220,5 +242,70 @@ cobs_ret_t cobs_decode(void const *enc,
   }
 
   *out_dec_len = dst_idx;
+  return COBS_RET_SUCCESS;
+  */
+}
+
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_ctx_t *ctx) {
+  if (!ctx) {
+    return COBS_RET_ERR_BAD_ARG;
+  }
+  ctx->state = COBS_DECODE_READ_CODE;
+  return COBS_RET_SUCCESS;
+}
+
+cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
+  if (!ctx || !args) {
+    return COBS_RET_ERR_BAD_ARG;
+  }
+
+  size_t src_idx = 0, dst_idx = 0;
+  cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
+  cobs_byte_t *dst_b = (cobs_byte_t *)args->dst;
+
+  for (;;) {
+    switch (ctx->state) {
+      case COBS_DECODE_READ_CODE: {
+        if (src_idx >= args->src_max) {
+          goto done;
+        }
+        cobs_byte_t const b = src_b[src_idx++];
+        ctx->block = ctx->code = b;
+        if (!b) {
+          args->decode_complete = 1;
+          goto done;
+        }
+        --ctx->block;
+        ctx->state = COBS_DECODE_RUN;
+      } break;
+
+      case COBS_DECODE_WRITE_ZERO: {
+        if (dst_idx >= args->dst_max) {
+          goto done;
+        }
+        dst_b[dst_idx++] = 0;
+        ctx->state = COBS_DECODE_READ_CODE;
+      } break;
+
+      case COBS_DECODE_RUN: {
+        while (ctx->block) {
+          if ((src_idx >= args->src_max) || (dst_idx >= args->dst_max)) {
+            goto done;
+          }
+          cobs_byte_t const b = src_b[src_idx++];
+          if (!b) {
+            return COBS_RET_ERR_BAD_PAYLOAD;
+          }
+          dst_b[dst_idx++] = b;
+          --ctx->block;
+        }
+        ctx->state = (ctx->code == 0xFF) ? COBS_DECODE_READ_CODE : COBS_DECODE_WRITE_ZERO;
+      } break;
+    }
+  }
+
+done:
+  args->dst_len = dst_idx;
+  args->src_len = src_idx;
   return COBS_RET_SUCCESS;
 }

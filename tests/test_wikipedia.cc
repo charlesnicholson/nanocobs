@@ -32,6 +32,7 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                       enc_actual.size(),
                       &enc_actual_len) == COBS_RET_SUCCESS);
 
+  REQUIRE(enc_actual_len == encoded.size());
   REQUIRE(encoded == byte_vec_t(enc_actual.data(), enc_actual.data() + enc_actual_len));
 
   REQUIRE(cobs_decode(enc_actual.data(),
@@ -40,6 +41,7 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                       dec_actual.size(),
                       &dec_actual_len) == COBS_RET_SUCCESS);
 
+  REQUIRE(dec_actual_len == decoded.size());
   REQUIRE(decoded == byte_vec_t(dec_actual.data(), dec_actual.data() + dec_actual_len));
 
   // Additionaly, in-place decode atop enc_actual using cobs_decode.
@@ -50,6 +52,7 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                       enc_actual.size(),
                       &dec_actual_len) == COBS_RET_SUCCESS);
 
+  REQUIRE(dec_actual_len == decoded.size());
   REQUIRE(decoded == byte_vec_t(enc_actual.data(), enc_actual.data() + dec_actual_len));
 }
 }  // namespace

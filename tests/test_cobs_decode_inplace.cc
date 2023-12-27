@@ -127,7 +127,7 @@ void verify_decode_inplace(unsigned char *inplace, size_t payload_len) {
           byte_vec_t(external.data(), external.data() + external_len));
 }
 
-void fill_encode_inplace(byte_t *inplace, unsigned payload_len, byte_t f) {
+void fill_encode_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
   inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
   memset(inplace + 1, f, payload_len);
   inplace[payload_len + 1] = COBS_INPLACE_SENTINEL_VALUE;
@@ -136,50 +136,50 @@ void fill_encode_inplace(byte_t *inplace, unsigned payload_len, byte_t f) {
 }  // namespace
 
 TEST_CASE("Decode: Inplace == External") {
-  unsigned char inplace[COBS_INPLACE_SAFE_BUFFER_SIZE];
+  std::array<byte_t, COBS_INPLACE_SAFE_BUFFER_SIZE> inplace;
 
   SUBCASE("Fill with zeros") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
-      fill_encode_inplace(inplace, i, 0x00);
-      verify_decode_inplace(inplace, i);
+    for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
+      fill_encode_inplace(inplace.data(), i, 0x00);
+      verify_decode_inplace(inplace.data(), i);
     }
   }
 
   SUBCASE("Fill with nonzeros") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
-      fill_encode_inplace(inplace, i, 0x01);
-      verify_decode_inplace(inplace, i);
+    for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
+      fill_encode_inplace(inplace.data(), i, 0x01);
+      verify_decode_inplace(inplace.data(), i);
     }
   }
 
   SUBCASE("Fill with 0xFF") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
-      fill_encode_inplace(inplace, i, 0xFF);
-      verify_decode_inplace(inplace, i);
+    for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
+      fill_encode_inplace(inplace.data(), i, 0xFF);
+      verify_decode_inplace(inplace.data(), i);
     }
   }
 
   SUBCASE("Fill with zero/one pattern") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
       inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
-      for (auto j = 1u; j < i; ++j) {
+      for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = j & 1;
       }
       inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
-      REQUIRE(cobs_encode_inplace(inplace, i + 2) == COBS_RET_SUCCESS);
-      verify_decode_inplace(inplace, i);
+      REQUIRE(cobs_encode_inplace(inplace.data(), i + 2) == COBS_RET_SUCCESS);
+      verify_decode_inplace(inplace.data(), i);
     }
   }
 
   SUBCASE("Fill with one/zero pattern") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
       inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
       }
       inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
-      REQUIRE(cobs_encode_inplace(inplace, i + 2) == COBS_RET_SUCCESS);
-      verify_decode_inplace(inplace, i);
+      REQUIRE(cobs_encode_inplace(inplace.data(), i + 2) == COBS_RET_SUCCESS);
+      verify_decode_inplace(inplace.data(), i);
     }
   }
 }

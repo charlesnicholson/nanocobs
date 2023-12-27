@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,6 +171,33 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec_src, size_t dec_
 //
 // If null pointers are provided, the function returns COBS_RET_ERR_BAD_ARG.
 cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len);
+
+// Incremental decoding API
+
+typedef struct cobs_decode_ctx {
+  uint8_t code, block;
+  enum {
+    COBS_DECODE_READ_CODE,
+    COBS_DECODE_RUN,
+    COBS_DECODE_WRITE_ZERO
+  } state;
+} cobs_decode_ctx_t;
+
+typedef struct cobs_decode_args {
+  // inputs
+  void const *src;  // pointer to current position of encoded payload
+  void *dst;        // pointer to decoded buffer.
+  size_t src_max;   // length of the |src| input buffer.
+  size_t dst_max;   // length of the |dst| output buffer.
+
+  // outputs
+  size_t src_len;        // how many bytes of |src| were consumed in this call.
+  size_t dst_len;        // how many bytes were decoded into |dst|.
+  bool decode_complete;  // whether a full COBS decoding was completed.
+} cobs_decode_args_t;
+
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_ctx_t *ctx);
+cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args);
 
 #ifdef __cplusplus
 }
