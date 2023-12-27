@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <vector>
 
 using byte_t = unsigned char;
