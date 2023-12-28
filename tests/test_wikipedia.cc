@@ -5,12 +5,11 @@
 #include <numeric>
 
 namespace {
-constexpr byte_t CSV{ COBS_INPLACE_SENTINEL_VALUE };
 
 void round_trip_inplace(byte_vec_t const &decoded, byte_vec_t const &encoded) {
-  byte_vec_t decoded_inplace{ CSV };
+  byte_vec_t decoded_inplace{ COBS_INPLACE_SENTINEL_VALUE };
   decoded_inplace.insert(std::end(decoded_inplace), decoded.begin(), decoded.end());
-  decoded_inplace.push_back(CSV);
+  decoded_inplace.push_back(COBS_INPLACE_SENTINEL_VALUE);
 
   byte_vec_t x(decoded_inplace);
 
