@@ -3,7 +3,6 @@
 #include "doctest.h"
 
 #include <numeric>
-#include <sstream>
 
 static constexpr byte_t CSV{ COBS_INPLACE_SENTINEL_VALUE };
 
