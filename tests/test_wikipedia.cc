@@ -3,6 +3,7 @@
 #include "doctest.h"
 
 #include <numeric>
+#include <sstream>
 
 static constexpr byte_t CSV{ COBS_INPLACE_SENTINEL_VALUE };
 
@@ -58,7 +59,6 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
 }  // namespace
 
 // https://wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples
-
 TEST_CASE("Wikipedia round-trip examples") {
   SUBCASE("Example 1") {
     const byte_vec_t decoded{ 0x00 };

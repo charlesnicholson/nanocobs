@@ -175,12 +175,12 @@ cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len);
 // Incremental decoding API
 
 typedef struct cobs_decode_ctx {
-  uint8_t code, block;
   enum {
     COBS_DECODE_READ_CODE,
     COBS_DECODE_RUN,
-    COBS_DECODE_WRITE_ZERO
+    COBS_DECODE_FINISH_RUN
   } state;
+  uint8_t block, code, overhead;
 } cobs_decode_ctx_t;
 
 typedef struct cobs_decode_args {
