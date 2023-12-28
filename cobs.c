@@ -219,14 +219,18 @@ cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
   }
 
   size_t src_idx = 0, dst_idx = 0;
+  size_t const src_max = args->src_max;
+  size_t const dst_max = args->dst_max;
   cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
   cobs_byte_t *dst_b = (cobs_byte_t *)args->dst;
+  unsigned block = ctx->block, code = ctx->code;
+  enum decode_state state = ctx->state;
 
-  while (src_idx < args->src_max) {
-    switch (ctx->state) {
+  while (src_idx < src_max) {
+    switch (state) {
       case COBS_DECODE_READ_CODE: {
-        ctx->block = ctx->code = src_b[src_idx++];
-        ctx->state = COBS_DECODE_RUN;
+        block = code = src_b[src_idx++];
+        state = COBS_DECODE_RUN;
       } break;
 
       case COBS_DECODE_FINISH_RUN: {
@@ -235,18 +239,18 @@ cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
           goto done;
         }
 
-        if (ctx->code != 0xFF) {
-          if (dst_idx >= args->dst_max) {
+        if (code != 0xFF) {
+          if (dst_idx >= dst_max) {
             goto done;
           }
           dst_b[dst_idx++] = 0;
         }
-        ctx->state = COBS_DECODE_READ_CODE;
+        state = COBS_DECODE_READ_CODE;
       } break;
 
       case COBS_DECODE_RUN: {
-        while (--ctx->block) {
-          if ((src_idx >= args->src_max) || (dst_idx >= args->dst_max)) {
+        while (--block) {
+          if ((src_idx >= src_max) || (dst_idx >= dst_max)) {
             goto done;
           }
 
@@ -257,12 +261,15 @@ cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
 
           dst_b[dst_idx++] = b;
         }
-        ctx->state = COBS_DECODE_FINISH_RUN;
+        state = COBS_DECODE_FINISH_RUN;
       } break;
     }
   }
 
 done:
+  ctx->state = state;
+  ctx->code = (uint8_t)code;
+  ctx->block = (uint8_t)block;
   args->dst_len = dst_idx;
   args->src_len = src_idx;
   return COBS_RET_SUCCESS;
