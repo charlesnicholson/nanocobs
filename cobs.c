@@ -224,21 +224,14 @@ cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
   cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
   cobs_byte_t *dst_b = (cobs_byte_t *)args->dst;
 
-  for (;;) {
+  while (src_idx < args->src_max) {
     switch (ctx->state) {
       case COBS_DECODE_READ_CODE: {
-        if (src_idx >= args->src_max) {
-          goto done;
-        }
-
         ctx->block = ctx->code = src_b[src_idx++];
         ctx->state = COBS_DECODE_RUN;
       } break;
 
       case COBS_DECODE_FINISH_RUN: {
-        if (src_idx >= args->src_max) {
-          goto done;
-        }
         if (!src_b[src_idx]) {
           args->decode_complete = 1;
           goto done;
