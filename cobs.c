@@ -42,7 +42,7 @@ cobs_ret_t cobs_decode_inplace(void *buf, size_t const len) {
 
   cobs_byte_t *const src = (cobs_byte_t *)buf;
   size_t ofs, cur = 0;
-  while (cur < len && ((ofs = src[cur]) != COBS_FRAME_DELIMITER)) {
+  while ((cur < len) && ((ofs = src[cur]) != COBS_FRAME_DELIMITER)) {
     src[cur] = 0;
     for (size_t i = 1; i < ofs; ++i) {
       if (src[cur + i] == 0) {
@@ -210,8 +210,6 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_ctx_t *ctx) {
     return COBS_RET_ERR_BAD_ARG;
   }
   ctx->state = COBS_DECODE_READ_CODE;
-  ctx->block = 0;
-  ctx->code = 0xFF;
   return COBS_RET_SUCCESS;
 }
 
