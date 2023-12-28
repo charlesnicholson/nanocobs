@@ -180,7 +180,7 @@ typedef struct cobs_decode_ctx {
     COBS_DECODE_RUN,
     COBS_DECODE_FINISH_RUN
   } state;
-  uint8_t block, code, overhead;
+  uint8_t block, code;
 } cobs_decode_ctx_t;
 
 typedef struct cobs_decode_args {
