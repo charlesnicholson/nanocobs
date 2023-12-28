@@ -74,27 +74,34 @@ TEST_CASE("Wikipedia round-trip examples") {
   }
 
   SUBCASE("Example 3") {
+    const byte_vec_t decoded{ 0x00, 0x11, 0x00 };
+    const byte_vec_t encoded{ 0x01, 0x02, 0x11, 0x01, 0x00 };
+    round_trip_inplace(decoded, encoded);
+    round_trip(decoded, encoded);
+  }
+
+  SUBCASE("Example 4") {
     const byte_vec_t decoded{ 0x11, 0x22, 0x00, 0x33 };
     const byte_vec_t encoded{ 0x03, 0x11, 0x22, 0x02, 0x33, 0x00 };
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 4") {
+  SUBCASE("Example 5") {
     const byte_vec_t decoded{ 0x11, 0x22, 0x33, 0x44 };
     const byte_vec_t encoded{ 0x05, 0x11, 0x22, 0x33, 0x44, 0x00 };
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 5") {
+  SUBCASE("Example 6") {
     const byte_vec_t decoded{ 0x11, 0x00, 0x00, 0x00 };
     const byte_vec_t encoded{ 0x02, 0x11, 0x01, 0x01, 0x01, 0x00 };
     round_trip_inplace(decoded, encoded);
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 6") {
+  SUBCASE("Example 7") {
     // 01 02 03 ... FD FE
     byte_vec_t decoded(254);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{ 0x01 });
@@ -109,7 +116,7 @@ TEST_CASE("Wikipedia round-trip examples") {
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 7") {
+  SUBCASE("Example 8") {
     // 00 01 02 ... FC FD FE
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{ 0x00 });
@@ -125,7 +132,7 @@ TEST_CASE("Wikipedia round-trip examples") {
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 8") {
+  SUBCASE("Example 9") {
     // 01 02 03 ... FD FE FF
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{ 0x01 });
@@ -139,7 +146,7 @@ TEST_CASE("Wikipedia round-trip examples") {
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 9") {
+  SUBCASE("Example 10") {
     // 02 03 04 ... FE FF 00
     byte_vec_t decoded(255);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{ 0x02 });
@@ -154,7 +161,7 @@ TEST_CASE("Wikipedia round-trip examples") {
     round_trip(decoded, encoded);
   }
 
-  SUBCASE("Example 10") {
+  SUBCASE("Example 11") {
     // 03 04 05 ... FF 00 01
     byte_vec_t decoded(253);
     std::iota(std::begin(decoded), std::end(decoded), byte_t{ 0x03 });
