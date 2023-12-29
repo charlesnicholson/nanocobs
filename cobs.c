@@ -183,29 +183,28 @@ cobs_ret_t cobs_decode(void const *enc,
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  cobs_decode_args_t args = {
-    .src = enc,
-    .dst = out_dec,
-    .src_max = enc_len,
-    .dst_max = dec_max,
-    .src_len = 0,
-    .dst_len = 0,
-    .decode_complete = 0,
-  };
-
-  cobs_decode_ctx_t ctx;
+  cobs_decode_inc_ctx_t ctx;
   cobs_ret_t r;
   if ((r = cobs_decode_inc_begin(&ctx)) != COBS_RET_SUCCESS) {
     return r;
   }
-  if ((r = cobs_decode_inc(&ctx, &args)) != COBS_RET_SUCCESS) {
+
+  size_t src_len;
+  bool decode_complete;
+  if ((r = cobs_decode_inc(&ctx,
+                           &(cobs_decode_inc_args_t){ .src = enc,
+                                                      .dst = out_dec,
+                                                      .src_max = enc_len,
+                                                      .dst_max = dec_max },
+                           &src_len,
+                           out_dec_len,
+                           &decode_complete)) != COBS_RET_SUCCESS) {
     return r;
   }
-  *out_dec_len = args.dst_len;
-  return args.decode_complete ? COBS_RET_SUCCESS : COBS_RET_ERR_EXHAUSTED;
+  return decode_complete ? COBS_RET_SUCCESS : COBS_RET_ERR_EXHAUSTED;
 }
 
-cobs_ret_t cobs_decode_inc_begin(cobs_decode_ctx_t *ctx) {
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
   if (!ctx) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -213,11 +212,16 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_ctx_t *ctx) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
-  if (!ctx || !args) {
+cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
+                           cobs_decode_inc_args_t *args,
+                           size_t *out_src_len,
+                           size_t *out_dst_len,
+                           bool *out_decode_complete) {
+  if (!ctx || !args || !out_src_len || !out_dst_len || !out_decode_complete) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
+  bool decode_complete = false;
   size_t src_idx = 0, dst_idx = 0;
   size_t const src_max = args->src_max;
   size_t const dst_max = args->dst_max;
@@ -235,7 +239,7 @@ cobs_ret_t cobs_decode_inc(cobs_decode_ctx_t *ctx, cobs_decode_args_t *args) {
 
       case COBS_DECODE_FINISH_RUN: {
         if (!src_b[src_idx]) {
-          args->decode_complete = 1;
+          decode_complete = true;
           goto done;
         }
 
@@ -270,7 +274,8 @@ done:
   ctx->state = state;
   ctx->code = (uint8_t)code;
   ctx->block = (uint8_t)block;
-  args->dst_len = dst_idx;
-  args->src_len = src_idx;
+  *out_dst_len = dst_idx;
+  *out_src_len = src_idx;
+  *out_decode_complete = decode_complete;
   return COBS_RET_SUCCESS;
 }
