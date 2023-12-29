@@ -46,7 +46,7 @@ jobs:
       - name: Build
         run: arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
 
-  linux-gcc:
+  linux:
     runs-on: ubuntu-latest
 
     permissions:
@@ -61,11 +61,12 @@ jobs:
     strategy:
       matrix:
         architecture: [32, 64]
+        compiler_env: ["CC=gcc CXX=g++", "CC=clang CXX=clang++"]
 
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: COBS_LINUXARCH=${{ matrix.architecture }} make -j
+        run: ${{ matrix.compiler_env }} COBS_LINUXARCH=${{ matrix.architecture }} make -j
 
   macos:
     runs-on: macos-latest
