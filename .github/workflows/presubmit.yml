@@ -20,10 +20,6 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    env:
-      CC: /usr/bin/clang
-      CXX: /usr/bin/clang++
-
     steps:
       - uses: actions/checkout@v3
       - name: Build
@@ -44,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
+        run: CC=clang CXX=clang++ arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
 
   linux:
     name: linux (${{ matrix.compiler.name }}, ${{ matrix.architecture }})
