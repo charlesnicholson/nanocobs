@@ -184,8 +184,8 @@ cobs_ret_t cobs_decode(void const *enc,
   }
 
   cobs_decode_inc_ctx_t ctx;
-  cobs_ret_t r;
-  if ((r = cobs_decode_inc_begin(&ctx)) != COBS_RET_SUCCESS) {
+  cobs_ret_t r = cobs_decode_inc_begin(&ctx);
+  if (r != COBS_RET_SUCCESS) {
     return r;
   }
 
