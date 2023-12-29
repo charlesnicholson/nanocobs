@@ -192,7 +192,7 @@ typedef struct cobs_decode_inc_args {
 
 cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx);
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
-                           cobs_decode_inc_args_t *args,
+                           cobs_decode_inc_args_t const *args,
                            size_t *out_src_len,  // how many bytes of src were read
                            size_t *out_dst_len,  // how many bytes written to dst
                            bool *out_decode_complete);

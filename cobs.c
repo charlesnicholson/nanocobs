@@ -213,7 +213,7 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
 }
 
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
-                           cobs_decode_inc_args_t *args,
+                           cobs_decode_inc_args_t const *args,
                            size_t *out_src_len,
                            size_t *out_dst_len,
                            bool *out_decode_complete) {
@@ -223,6 +223,7 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
 
   bool decode_complete = false;
   size_t src_idx = 0, dst_idx = 0;
+
   size_t const src_max = args->src_max;
   size_t const dst_max = args->dst_max;
   cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
