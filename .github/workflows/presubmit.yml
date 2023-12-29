@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: COBS_SANITIZE=1 make -j
+        run: CC=clang CXX=clang++ COBS_SANITIZE=1 make -j
 
   arm-cm4:
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: CC=clang CXX=clang++ arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
+        run: arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
 
   linux:
     name: linux (${{ matrix.compiler.name }}, ${{ matrix.architecture }})
