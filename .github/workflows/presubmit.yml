@@ -95,7 +95,7 @@ jobs:
           call make-win.bat
 
   all-checks-pass:
-    needs: [sanitizers, linux, macos, win]
+    needs: [sanitizers, linux, macos, win, arm-cm4]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done
