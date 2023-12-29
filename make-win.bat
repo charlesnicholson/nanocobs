@@ -2,6 +2,7 @@ cl.exe /W4 /WX /MP /EHsc ^
     cobs.c ^
     tests/cobs_encode_max_c.c ^
     tests/test_cobs_decode.cc ^
+    tests/test_cobs_decode_inc.cc ^
     tests/test_cobs_decode_inplace.cc ^
     tests/test_cobs_encode_max.cc ^
     tests/test_cobs_encode.cc ^
