@@ -57,10 +57,10 @@ jobs:
 
     strategy:
       matrix:
-        architecture: [32, 64]
         compiler:
           - { name: "clang", env: "CC=clang CXX=clang++" }
           - { name: "gcc", env: "CC=gcc CXX=g++" }
+        architecture: [32, 64]
 
     steps:
       - uses: actions/checkout@v3
