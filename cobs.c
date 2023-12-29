@@ -229,7 +229,7 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
   cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
   cobs_byte_t *dst_b = (cobs_byte_t *)args->dst;
   unsigned block = ctx->block, code = ctx->code;
-  enum decode_state state = ctx->state;
+  enum cobs_decode_inc_state state = ctx->state;
 
   while (src_idx < src_max) {
     switch (state) {
