@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: CC=clang CXX=clang++ COBS_SANITIZER=-fsanitize=${{ matrix.sanitizer }} make -j
+        run: CC=clang CXX=clang++ COBS_SANITIZER=${{ matrix.sanitizer }} make -j
 
   arm-cm4:
     runs-on: ubuntu-latest

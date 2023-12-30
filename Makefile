@@ -46,6 +46,8 @@ endif
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
 ifdef COBS_SANITIZER
+CPPFLAGS += -fsanitize=$(COBS_SANITIZER)
+LDFLAGS += -fsanitize=$(COBS_SANITIZER)
 ifneq (,$(findstring memory,$(COBS_SANITIZER)))
 CPPFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
 LDFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
