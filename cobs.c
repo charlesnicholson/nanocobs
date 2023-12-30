@@ -212,7 +212,6 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
   return COBS_RET_SUCCESS;
 }
 
-#include <stdio.h>
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
                            cobs_decode_inc_args_t const *args,
                            size_t *out_src_len,
