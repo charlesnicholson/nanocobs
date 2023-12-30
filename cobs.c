@@ -256,12 +256,12 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
       } break;
 
       case COBS_DECODE_RUN: {
-        while (--block) {
+        while (block - 1) {
           if ((src_idx >= src_max) || (dst_idx >= dst_max)) {
-            ++block;
             goto done;
           }
 
+          --block;
           cobs_byte_t const b = src_b[src_idx++];
           if (!b) {
             return COBS_RET_ERR_BAD_PAYLOAD;
