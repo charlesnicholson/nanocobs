@@ -55,16 +55,16 @@ endif
 endif
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
-	$(CXX) $(LDFLAGS) $(COBS_SANITIZER) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
+	$(CXX) $(LDFLAGS) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
 
 $(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(COBS_SANITIZER) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(COBS_SANITIZER) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.cc.o: %.cc Makefile
-	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(COBS_SANITIZER) -c $< -o $@
+	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cobs_unittests.timestamp: $(BUILD_DIR)/cobs_unittests
 	$(BUILD_DIR)/cobs_unittests -m && touch $(BUILD_DIR)/cobs_unittests.timestamp
