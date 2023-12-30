@@ -4,6 +4,7 @@ SRCS := tests/cobs_encode_max_c.c \
 		tests/test_cobs_encode_inc.cc \
 		tests/test_cobs_encode_inplace.cc \
 		tests/test_cobs_decode.cc \
+		tests/test_cobs_decode_inc.cc \
 		tests/test_cobs_decode_inplace.cc \
 		tests/test_paper_figures.cc \
 		tests/test_wikipedia.cc \
@@ -16,7 +17,7 @@ OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
 CFLAGS = --std=c99
-CXXFLAGS = --std=c++17
+CXXFLAGS = --std=c++20
 
 CPPFLAGS += -MMD -MP -Os -g
 
@@ -27,11 +28,6 @@ LDFLAGS += -m32
 endif
 endif
 
-ifeq ($(COBS_SANITIZE),1)
-CPPFLAGS_SAN += -fsanitize=undefined,address
-LDFLAGS_SAN += -fsanitize=undefined,address
-endif
-
 CPPFLAGS += -Wall -Werror -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
@@ -40,7 +36,8 @@ CPPFLAGS += -Weverything \
 			-Wno-unsafe-buffer-usage \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
-			-Wno-c++98-compat-bind-to-temporary-copy
+			-Wno-c++98-compat-bind-to-temporary-copy \
+			-Wno-pre-c++20-compat-pedantic
 CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
@@ -48,17 +45,22 @@ endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
+ifdef COBS_SANITIZER
+CPPFLAGS += -fsanitize=$(COBS_SANITIZER) -fsanitize-ignorelist=sanitize-ignorelist.txt
+LDFLAGS += -fsanitize=$(COBS_SANITIZER) -fsanitize-ignorelist=sanitize-ignorelist.txt
+endif
+
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
-	$(CXX) $(LDFLAGS) $(LDFLAGS_SAN) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
+	$(CXX) $(LDFLAGS) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
 
 $(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.cc.o: %.cc Makefile
-	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/cobs_unittests.timestamp: $(BUILD_DIR)/cobs_unittests
 	$(BUILD_DIR)/cobs_unittests -m && touch $(BUILD_DIR)/cobs_unittests.timestamp

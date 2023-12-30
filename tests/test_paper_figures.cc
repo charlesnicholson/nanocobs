@@ -9,7 +9,7 @@ TEST_CASE("COBS paper examples") {
     input[input.size() - 1] = 0x00;
 
     byte_vec_t output(684);
-    size_t output_len;
+    size_t output_len{ 0u };
 
     REQUIRE(cobs_encode(input.data(),
                         input.size(),
@@ -34,7 +34,7 @@ TEST_CASE("COBS paper examples") {
                        0x01, 0x05, 0x40, 0x06, 0x4F, 0x37, 0x00 };
 
     std::array<byte_t, 256> encoded;
-    size_t encoded_len;
+    size_t encoded_len{ 0u };
 
     REQUIRE(cobs_encode(input.data(),
                         input.size(),

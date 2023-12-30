@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,6 +171,31 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec_src, size_t dec_
 //
 // If null pointers are provided, the function returns COBS_RET_ERR_BAD_ARG.
 cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len);
+
+// Incremental decoding API
+
+typedef struct cobs_decode_inc_ctx {
+  enum cobs_decode_inc_state {
+    COBS_DECODE_READ_CODE,
+    COBS_DECODE_RUN,
+    COBS_DECODE_FINISH_RUN
+  } state;
+  uint8_t block, code;
+} cobs_decode_inc_ctx_t;
+
+typedef struct cobs_decode_inc_args {
+  void const *enc_src;  // pointer to current position of encoded payload
+  void *dec_dst;        // pointer to decoded output buffer.
+  size_t enc_src_max;   // length of the |src| input buffer.
+  size_t dec_dst_max;   // length of the |dst| output buffer.
+} cobs_decode_inc_args_t;
+
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx);
+cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
+                           cobs_decode_inc_args_t const *args,
+                           size_t *out_enc_src_len,  // how many bytes of src were read
+                           size_t *out_dec_dst_len,  // how many bytes written to dst
+                           bool *out_decode_complete);
 
 #ifdef __cplusplus
 }
