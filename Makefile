@@ -29,8 +29,8 @@ endif
 endif
 
 ifeq ($(COBS_SANITIZE),1)
-CPPFLAGS_SAN += -fsanitize=undefined,address
-LDFLAGS_SAN += -fsanitize=undefined,address
+CPPFLAGS_SAN += -fsanitize=undefined,address,memory,safe-stack
+LDFLAGS_SAN += -fsanitize=undefined,address,memory,safe-stack
 endif
 
 CPPFLAGS += -Wall -Werror -Wextra
