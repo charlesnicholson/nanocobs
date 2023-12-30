@@ -49,9 +49,8 @@ TEST_CASE("many random payloads") {
   } };
 
   std::vector<std::thread> threads;
-  auto const thread_count{ std::max(1u, std::thread::hardware_concurrency() - 1) };
-
-  for (auto i{ 0u }; i < thread_count; ++i) {
+  for (auto i{ 0u }, n{ std::max(1u, std::thread::hardware_concurrency() - 1) }; i < n;
+       ++i) {
     threads.emplace_back(thread_proc, i);
   }
 
