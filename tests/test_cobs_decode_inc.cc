@@ -60,7 +60,7 @@ TEST_CASE("cobs_decode_inc") {
 
     REQUIRE(cobs_encode(dec.data(), dec_len, enc.data(), enc.size(), &enc_len) ==
             COBS_RET_SUCCESS);
-    std::fill(dec.begin(), dec.end(), 0);
+    std::fill(dec.begin(), dec.end(), byte_t{ 0u });
     REQUIRE(enc_len >= dec_len);
     REQUIRE(enc_len <= COBS_ENCODE_MAX(dec_len));
 
