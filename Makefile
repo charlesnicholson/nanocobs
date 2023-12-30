@@ -49,8 +49,8 @@ ifdef COBS_SANITIZER
 CPPFLAGS += -fsanitize=$(COBS_SANITIZER)
 LDFLAGS += -fsanitize=$(COBS_SANITIZER)
 ifneq (,$(findstring memory,$(COBS_SANITIZER)))
-CPPFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
-LDFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
+CPPFLAGS += -fsanitize-ignorelist=sanitize-ignorelist.txt
+LDFLAGS += -fsanitize-ignorelist=sanitize-ignorelist.txt
 endif
 endif
 
