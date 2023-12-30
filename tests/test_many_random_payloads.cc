@@ -20,7 +20,7 @@ TEST_CASE("many random payloads") {
     std::mt19937 mt{ seed };  // deterministic
     byte_vec_t source(LEN), decoded(LEN), encoded(COBS_ENCODE_MAX(LEN));
 
-    while (s_iterations > 0) {
+    while (--s_iterations > 0) {
       std::generate(source.begin(), source.end(), [&]() { return byte_t(mt() & 0xFF); });
       memset(source.data() + 1000, 0xAA, 256 * 10);  // nonzero run
 
@@ -45,7 +45,6 @@ TEST_CASE("many random payloads") {
 
       REQUIRE(dec_len == LEN);
       REQUIRE(source == decoded);
-      --s_iterations;
     }
   } };
 
