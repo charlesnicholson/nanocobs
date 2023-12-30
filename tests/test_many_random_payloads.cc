@@ -21,7 +21,7 @@ TEST_CASE("many random payloads") {
     byte_vec_t source(LEN), dec(LEN), enc(COBS_ENCODE_MAX(LEN));
 
     while (--s_iterations > 0) {
-      std::generate(source.begin(), source.end(), [&]() { return byte_t(mt() & 0xFF); });
+      std::generate(source.begin(), source.end(), [&]() { return byte_t(mt()); });
       memset(source.data() + 1000, 0xAA, 256 * 10);  // nonzero run
 
       size_t enc_len{ 0u };
