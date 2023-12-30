@@ -34,7 +34,12 @@ TEST_CASE("cobs_encode_inc_begin") {
 }
 
 TEST_CASE("cobs_encode_inc") {
-  cobs_enc_ctx_t ctx;
+  cobs_enc_ctx_t ctx{ .dst = nullptr,
+                      .dst_max = 0,
+                      .cur = 0,
+                      .code_idx = 0,
+                      .code = 0,
+                      .need_advance = 0 };
   size_t const enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
   size_t const dec_max{ 1024 };
@@ -166,7 +171,7 @@ TEST_CASE("cobs_encode_inc_end") {
 namespace {
 byte_vec_t encode_single(byte_vec_t const &dec) {
   byte_vec_t enc(COBS_ENCODE_MAX(dec.size()));
-  size_t enc_len;
+  size_t enc_len{ 0u };
   REQUIRE(cobs_encode(dec.data(), dec.size(), enc.data(), enc.size(), &enc_len) ==
           COBS_RET_SUCCESS);
   enc.resize(enc_len);
@@ -295,7 +300,7 @@ TEST_CASE("Single/multi-encode equivalences") {
     REQUIRE(cobs_encode_inc(&ctx, h, sizeof(h)) == COBS_RET_SUCCESS);
     REQUIRE(cobs_encode_inc(&ctx, dec_buf.data(), dec_buf.size()) == COBS_RET_SUCCESS);
 
-    size_t len;
+    size_t len{ 0u };
     REQUIRE(cobs_encode_inc_end(&ctx, &len) == COBS_RET_SUCCESS);
     enc_buf.resize(len);
 

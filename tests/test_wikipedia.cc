@@ -21,7 +21,7 @@ void round_trip_inplace(byte_vec_t const &decoded, byte_vec_t const &encoded) {
 
 void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
   std::array<byte_t, 512> enc_actual, dec_actual;
-  size_t enc_actual_len, dec_actual_len;
+  size_t enc_actual_len{ 0u }, dec_actual_len{ 0u };
 
   REQUIRE(cobs_encode(decoded.data(),
                       decoded.size(),
