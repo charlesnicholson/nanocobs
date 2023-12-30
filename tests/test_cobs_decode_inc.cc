@@ -24,7 +24,7 @@ TEST_CASE("cobs_decode_inc") {
                                .dst = dec.data(),
                                .src_max = enc.size(),
                                .dst_max = dec.size() };
-  size_t enc_len, dec_len;
+  size_t enc_len{ 0u }, dec_len{ 0u };
   bool done{ false };
 
   SUBCASE("bad args") {
@@ -65,7 +65,7 @@ TEST_CASE("cobs_decode_inc") {
     REQUIRE(enc_len <= COBS_ENCODE_MAX(dec_len));
 
     byte_vec_t oneshot(enc.size());
-    size_t oneshot_len;
+    size_t oneshot_len{ 0u };
     REQUIRE(
         cobs_decode(enc.data(), enc_len, oneshot.data(), oneshot.size(), &oneshot_len) ==
         COBS_RET_SUCCESS);
@@ -78,7 +78,7 @@ TEST_CASE("cobs_decode_inc") {
       args.src_max = 1;
       args.dst_max = 1;
 
-      size_t this_enc_len, this_dec_len;
+      size_t this_enc_len{ 0u }, this_dec_len{ 0u };
       REQUIRE_MESSAGE(cobs_decode_inc(&ctx, &args, &this_enc_len, &this_dec_len, &done) ==
                           COBS_RET_SUCCESS,
                       cur_dec);

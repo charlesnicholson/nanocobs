@@ -114,7 +114,7 @@ TEST_CASE("Inplace decoding") {
 namespace {
 void verify_decode_inplace(unsigned char *inplace, size_t payload_len) {
   byte_vec_t external(std::max(payload_len, size_t(1)));
-  size_t external_len;
+  size_t external_len{ 0u };
   REQUIRE_MESSAGE(cobs_decode(inplace,
                               payload_len + 2,
                               external.data(),

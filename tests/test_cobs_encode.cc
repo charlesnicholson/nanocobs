@@ -26,7 +26,7 @@ TEST_CASE("Encoding validation") {
 
 TEST_CASE("Simple encodings") {
   byte_t dec[16], enc[16];
-  size_t enc_len;
+  size_t enc_len{ 0u };
 
   SUBCASE("Empty") {
     REQUIRE(cobs_encode(&dec, 0, enc, sizeof(enc), &enc_len) == COBS_RET_SUCCESS);
@@ -94,7 +94,7 @@ TEST_CASE("Simple encodings") {
 namespace {
 byte_vec_t encode(byte_vec_t const &decoded) {
   byte_vec_t enc(COBS_ENCODE_MAX(static_cast<unsigned>(decoded.size())));
-  size_t enc_len;
+  size_t enc_len{ 0u };
   REQUIRE(cobs_encode(decoded.data(), decoded.size(), enc.data(), enc.size(), &enc_len) ==
           COBS_RET_SUCCESS);
   return byte_vec_t(enc.data(), enc.data() + enc_len);
