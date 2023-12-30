@@ -2,6 +2,7 @@
 #include "byte_vec.h"
 #include "doctest.h"
 
+#include <cstring>
 #include <numeric>
 
 TEST_CASE("cobs_decode_inc_begin") {
