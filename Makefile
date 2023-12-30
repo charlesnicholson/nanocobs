@@ -45,6 +45,13 @@ endif
 
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
+ifdef COBS_SANITIZER
+ifneq (,$(findstring memory,$(COBS_SANITIZER)))
+CPPFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
+LDFLAGS += -fsanitize-ignorelist=memory-sanitize-ignorelist.txt
+endif
+endif
+
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
 	$(CXX) $(LDFLAGS) $(COBS_SANITIZER) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
 
