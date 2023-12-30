@@ -1,1 +1,2 @@
-src:*/include/c++/*
+src:*/stl_tree.h
+src:ostream
