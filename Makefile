@@ -28,11 +28,6 @@ LDFLAGS += -m32
 endif
 endif
 
-ifeq ($(COBS_SANITIZE),1)
-CPPFLAGS_SAN += -fsanitize=undefined,address,memory,safe-stack
-LDFLAGS_SAN += -fsanitize=undefined,address,memory,safe-stack
-endif
-
 CPPFLAGS += -Wall -Werror -Wextra
 
 ifneq '' '$(findstring clang,$(COMPILER_VERSION))'
@@ -51,16 +46,16 @@ endif
 CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
-	$(CXX) $(LDFLAGS) $(LDFLAGS_SAN) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
+	$(CXX) $(LDFLAGS) $(COBS_SANITIZER) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
 
 $(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(COBS_SANITIZER) -c $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) $(COBS_SANITIZER) -c $< -o $@
 
 $(BUILD_DIR)/%.cc.o: %.cc Makefile
-	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(CPPFLAGS_SAN) -c $< -o $@
+	mkdir -p $(dir $@) && $(CXX) $(CPPFLAGS) $(CXXFLAGS) $(COBS_SANITIZER) -c $< -o $@
 
 $(BUILD_DIR)/cobs_unittests.timestamp: $(BUILD_DIR)/cobs_unittests
 	$(BUILD_DIR)/cobs_unittests -m && touch $(BUILD_DIR)/cobs_unittests.timestamp

@@ -9,6 +9,7 @@ on:
 
 jobs:
   sanitizers:
+    name: sanitizer (${{ matrix.sanitizer.name }})
     runs-on: ubuntu-latest
 
     permissions:
@@ -20,10 +21,18 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    strategy:
+      matrix:
+        sanitizer:
+          - { name: "memory", flag: "-fsanitize=memory" }
+          - { name: "address", flag: "-fsanitize=address" }
+          - { name: "safe-stack", flag: "-fsanitize=safe-stack" }
+          - { name: "UB", flag: "-fsanitize=undefined" }
+
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: CC=clang CXX=clang++ COBS_SANITIZE=1 make -j
+        run: CC=clang CXX=clang++ COBS_SANITIZER=${{ matrix.sanitizer.flag }} make -j
 
   arm-cm4:
     runs-on: ubuntu-latest
