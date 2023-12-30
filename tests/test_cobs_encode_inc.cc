@@ -191,7 +191,7 @@ byte_vec_t encode_incremental(byte_vec_t const &decoded, size_t chunk_size) {
     cur += encode_size;
   }
 
-  size_t len;
+  size_t len{ 0u };
   REQUIRE(cobs_encode_inc_end(&ctx, &len) == COBS_RET_SUCCESS);
   encoded.resize(len);
   return encoded;
