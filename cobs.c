@@ -192,10 +192,10 @@ cobs_ret_t cobs_decode(void const *enc,
   size_t src_len;
   bool decode_complete;
   if ((r = cobs_decode_inc(&ctx,
-                           &(cobs_decode_inc_args_t){ .src = enc,
-                                                      .dst = out_dec,
-                                                      .src_max = enc_len,
-                                                      .dst_max = dec_max },
+                           &(cobs_decode_inc_args_t){ .enc_src = enc,
+                                                      .dec_dst = out_dec,
+                                                      .enc_src_max = enc_len,
+                                                      .dec_dst_max = dec_max },
                            &src_len,
                            out_dec_len,
                            &decode_complete)) != COBS_RET_SUCCESS) {
@@ -214,21 +214,21 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
 
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
                            cobs_decode_inc_args_t const *args,
-                           size_t *out_src_len,
-                           size_t *out_dst_len,
+                           size_t *out_enc_src_len,
+                           size_t *out_dec_dst_len,
                            bool *out_decode_complete) {
-  if (!ctx || !args || !out_src_len || !out_dst_len || !out_decode_complete ||
-      !args->dst || !args->src) {
+  if (!ctx || !args || !out_enc_src_len || !out_dec_dst_len || !out_decode_complete ||
+      !args->dec_dst || !args->enc_src) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
   bool decode_complete = false;
   size_t src_idx = 0, dst_idx = 0;
 
-  size_t const src_max = args->src_max;
-  size_t const dst_max = args->dst_max;
-  cobs_byte_t const *src_b = (cobs_byte_t const *)args->src;
-  cobs_byte_t *dst_b = (cobs_byte_t *)args->dst;
+  size_t const src_max = args->enc_src_max;
+  size_t const dst_max = args->dec_dst_max;
+  cobs_byte_t const *src_b = (cobs_byte_t const *)args->enc_src;
+  cobs_byte_t *dst_b = (cobs_byte_t *)args->dec_dst;
   unsigned block = ctx->block, code = ctx->code;
   enum cobs_decode_inc_state state = ctx->state;
 
@@ -277,8 +277,8 @@ done:
   ctx->state = state;
   ctx->code = (uint8_t)code;
   ctx->block = (uint8_t)block;
-  *out_dst_len = dst_idx;
-  *out_src_len = src_idx;
+  *out_dec_dst_len = dst_idx;
+  *out_enc_src_len = src_idx;
   *out_decode_complete = decode_complete;
   return COBS_RET_SUCCESS;
 }

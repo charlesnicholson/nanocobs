@@ -184,17 +184,17 @@ typedef struct cobs_decode_inc_ctx {
 } cobs_decode_inc_ctx_t;
 
 typedef struct cobs_decode_inc_args {
-  void const *src;  // pointer to current position of encoded payload
-  void *dst;        // pointer to decoded buffer.
-  size_t src_max;   // length of the |src| input buffer.
-  size_t dst_max;   // length of the |dst| output buffer.
+  void const *enc_src;  // pointer to current position of encoded payload
+  void *dec_dst;        // pointer to decoded buffer.
+  size_t enc_src_max;   // length of the |src| input buffer.
+  size_t dec_dst_max;   // length of the |dst| output buffer.
 } cobs_decode_inc_args_t;
 
 cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx);
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
                            cobs_decode_inc_args_t const *args,
-                           size_t *out_src_len,  // how many bytes of src were read
-                           size_t *out_dst_len,  // how many bytes written to dst
+                           size_t *out_enc_src_len,  // how many bytes of src were read
+                           size_t *out_dec_dst_len,  // how many bytes written to dst
                            bool *out_decode_complete);
 
 #ifdef __cplusplus

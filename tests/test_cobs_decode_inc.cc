@@ -20,10 +20,10 @@ TEST_CASE("cobs_decode_inc") {
   REQUIRE(cobs_decode_inc_begin(&ctx) == COBS_RET_SUCCESS);
 
   byte_vec_t enc(1024), dec(enc.size() * 2);
-  cobs_decode_inc_args_t args{ .src = enc.data(),
-                               .dst = dec.data(),
-                               .src_max = enc.size(),
-                               .dst_max = dec.size() };
+  cobs_decode_inc_args_t args{ .enc_src = enc.data(),
+                               .dec_dst = dec.data(),
+                               .enc_src_max = enc.size(),
+                               .dec_dst_max = dec.size() };
   size_t enc_len{ 0u }, dec_len{ 0u };
   bool done{ false };
 
@@ -40,12 +40,12 @@ TEST_CASE("cobs_decode_inc") {
             COBS_RET_ERR_BAD_ARG);
 
     SUBCASE("args.src") {
-      args.src = nullptr;
+      args.enc_src = nullptr;
       REQUIRE(cobs_decode_inc(&ctx, &args, &enc_len, &dec_len, &done) ==
               COBS_RET_ERR_BAD_ARG);
     }
     SUBCASE("args.dst") {
-      args.dst = nullptr;
+      args.dec_dst = nullptr;
       REQUIRE(cobs_decode_inc(&ctx, &args, &enc_len, &dec_len, &done) ==
               COBS_RET_ERR_BAD_ARG);
     }
@@ -73,10 +73,10 @@ TEST_CASE("cobs_decode_inc") {
 
     size_t cur_dec{ 0 }, cur_enc{ 0 };
     while (!done) {
-      args.src = &enc[cur_enc];
-      args.dst = &dec[cur_dec];
-      args.src_max = 1;
-      args.dst_max = 1;
+      args.enc_src = &enc[cur_enc];
+      args.dec_dst = &dec[cur_dec];
+      args.enc_src_max = 1;
+      args.dec_dst_max = 1;
 
       size_t this_enc_len{ 0u }, this_dec_len{ 0u };
       REQUIRE_MESSAGE(cobs_decode_inc(&ctx, &args, &this_enc_len, &this_dec_len, &done) ==
