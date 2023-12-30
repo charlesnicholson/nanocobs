@@ -1,4 +1,4 @@
-cl.exe /W4 /WX /MP /EHsc ^
+cl.exe /W4 /WX /MP /EHsc /std:c++20 ^
     cobs.c ^
     tests/cobs_encode_max_c.c ^
     tests/test_cobs_decode.cc ^

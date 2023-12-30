@@ -17,7 +17,7 @@ OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
 CFLAGS = --std=c99
-CXXFLAGS = --std=c++17
+CXXFLAGS = --std=c++20
 
 CPPFLAGS += -MMD -MP -Os -g
 
@@ -41,7 +41,8 @@ CPPFLAGS += -Weverything \
 			-Wno-unsafe-buffer-usage \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
-			-Wno-c++98-compat-bind-to-temporary-copy
+			-Wno-c++98-compat-bind-to-temporary-copy \
+			-Wno-pre-c++20-compat-pedantic
 CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
