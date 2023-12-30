@@ -9,7 +9,7 @@ on:
 
 jobs:
   sanitizers:
-    name: sanitizer (${{ matrix.sanitizer.name }})
+    name: sanitizer (${{ matrix.sanitizer }})
     runs-on: ubuntu-latest
 
     permissions:
@@ -23,16 +23,12 @@ jobs:
 
     strategy:
       matrix:
-        sanitizer:
-          - { name: "memory", flag: "-fsanitize=memory" }
-          - { name: "address", flag: "-fsanitize=address" }
-          - { name: "safe-stack", flag: "-fsanitize=safe-stack" }
-          - { name: "UB", flag: "-fsanitize=undefined" }
+        sanitizer: [ "memory", "address", "safe-stack", "undefined" ]
 
     steps:
       - uses: actions/checkout@v3
       - name: Build
-        run: CC=clang CXX=clang++ COBS_SANITIZER=${{ matrix.sanitizer.flag }} make -j
+        run: CC=clang CXX=clang++ COBS_SANITIZER=-fsanitize=${{ matrix.sanitizer }} make -j
 
   arm-cm4:
     runs-on: ubuntu-latest
