@@ -115,11 +115,12 @@ namespace {
 void verify_decode_inplace(unsigned char *inplace, size_t payload_len) {
   byte_vec_t external(std::max(payload_len, size_t(1)));
   size_t external_len;
-  REQUIRE(cobs_decode(inplace,
-                      payload_len + 2,
-                      external.data(),
-                      external.size(),
-                      &external_len) == COBS_RET_SUCCESS);
+  REQUIRE_MESSAGE(cobs_decode(inplace,
+                              payload_len + 2,
+                              external.data(),
+                              external.size(),
+                              &external_len) == COBS_RET_SUCCESS,
+                  payload_len);
 
   REQUIRE(external_len == payload_len);
   REQUIRE(cobs_decode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS);
@@ -131,7 +132,8 @@ void fill_encode_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
   inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
   memset(inplace + 1, f, payload_len);
   inplace[payload_len + 1] = COBS_INPLACE_SENTINEL_VALUE;
-  REQUIRE(cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS);
+  REQUIRE_MESSAGE(cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS,
+                  payload_len);
 }
 }  // namespace
 

@@ -212,12 +212,14 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
   return COBS_RET_SUCCESS;
 }
 
+#include <stdio.h>
 cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
                            cobs_decode_inc_args_t const *args,
                            size_t *out_src_len,
                            size_t *out_dst_len,
                            bool *out_decode_complete) {
-  if (!ctx || !args || !out_src_len || !out_dst_len || !out_decode_complete) {
+  if (!ctx || !args || !out_src_len || !out_dst_len || !out_decode_complete ||
+      !args->dst || !args->src) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
@@ -256,6 +258,7 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
       case COBS_DECODE_RUN: {
         while (--block) {
           if ((src_idx >= src_max) || (dst_idx >= dst_max)) {
+            ++block;
             goto done;
           }
 
