@@ -185,7 +185,7 @@ typedef struct cobs_decode_inc_ctx {
 
 typedef struct cobs_decode_inc_args {
   void const *enc_src;  // pointer to current position of encoded payload
-  void *dec_dst;        // pointer to decoded buffer.
+  void *dec_dst;        // pointer to decoded output buffer.
   size_t enc_src_max;   // length of the |src| input buffer.
   size_t dec_dst_max;   // length of the |dst| output buffer.
 } cobs_decode_inc_args_t;
