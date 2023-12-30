@@ -2,6 +2,7 @@
 #include "byte_vec.h"
 #include "doctest.h"
 
+#include <algorithm>
 #include <cstring>
 #include <numeric>
 
@@ -51,45 +52,69 @@ TEST_CASE("cobs_decode_inc") {
     }
   }
 
-  SUBCASE("one byte at a time") {
-    dec_len = 512;
-    memset(dec.data(), 0xAA, dec_len);
-    memset(&dec[10], 0x00, 3);
-    memset(&dec[99], 0x00, 5);
-    memset(&dec[413], 0x00, 9);
+  // fill the buffer with patterns and 0x00 runs
+  dec_len = 900;
+  memset(dec.data(), 0xAA, dec_len);
+  memset(&dec[10], 0x00, 3);
+  memset(&dec[99], 0x00, 5);
+  memset(&dec[413], 0x00, 9);
+  std::iota(&dec[500], &dec[500 + 300], byte_t{ 0u });
 
-    REQUIRE(cobs_encode(dec.data(), dec_len, enc.data(), enc.size(), &enc_len) ==
-            COBS_RET_SUCCESS);
-    std::fill(dec.begin(), dec.end(), byte_t{ 0u });
-    REQUIRE(enc_len >= dec_len);
-    REQUIRE(enc_len <= COBS_ENCODE_MAX(dec_len));
+  // encode the test buffer into |enc|
+  REQUIRE(cobs_encode(dec.data(), dec_len, enc.data(), enc.size(), &enc_len) ==
+          COBS_RET_SUCCESS);
+  std::fill(dec.begin(), dec.end(), byte_t{ 0u });
+  REQUIRE(enc_len >= dec_len);
+  REQUIRE(enc_len <= COBS_ENCODE_MAX(dec_len));
 
-    byte_vec_t oneshot(enc.size());
+  // Do a full decode into a reference buffer for comparison later
+  byte_vec_t oneshot(enc.size());
+  {
     size_t oneshot_len{ 0u };
     REQUIRE(
         cobs_decode(enc.data(), enc_len, oneshot.data(), oneshot.size(), &oneshot_len) ==
         COBS_RET_SUCCESS);
     oneshot.resize(oneshot_len);
+  }
 
-    size_t cur_dec{ 0 }, cur_enc{ 0 };
+  size_t cur_dec{ 0 }, cur_enc{ 0 };
+
+  auto const decode_inc{ [&](size_t const enc_size, size_t const dec_size) {
     while (!done) {
       args.enc_src = &enc[cur_enc];
       args.dec_dst = &dec[cur_dec];
-      args.enc_src_max = 1;
-      args.dec_dst_max = 1;
+      args.enc_src_max = std::min(enc_size, enc_len - cur_enc);
+      args.dec_dst_max = std::min(dec_size, oneshot.size() - cur_dec);
 
       size_t this_enc_len{ 0u }, this_dec_len{ 0u };
-      REQUIRE_MESSAGE(cobs_decode_inc(&ctx, &args, &this_enc_len, &this_dec_len, &done) ==
-                          COBS_RET_SUCCESS,
-                      cur_dec);
+      REQUIRE(cobs_decode_inc(&ctx, &args, &this_enc_len, &this_dec_len, &done) ==
+              COBS_RET_SUCCESS);
       cur_dec += this_dec_len;
       cur_enc += this_enc_len;
     }
 
+    REQUIRE(cur_dec == oneshot.size());
     dec.resize(cur_dec);
-
-    REQUIRE(cur_dec == oneshot_len);
     REQUIRE(dec == oneshot);
-    REQUIRE(done);
+  } };
+
+  SUBCASE("1 byte enc, full dec") {
+    decode_inc(1, oneshot.size());
+  }
+
+  SUBCASE("full enc, 1 byte dec") {
+    decode_inc(enc_len, 1);
+  }
+
+  SUBCASE("1 byte enc, 1 byte dec") {
+    decode_inc(1, 1);
+  }
+
+  SUBCASE("relative primes") {
+    decode_inc(19, 29);
+  }
+
+  SUBCASE("full") {
+    decode_inc(enc_len, oneshot.size());
   }
 }
