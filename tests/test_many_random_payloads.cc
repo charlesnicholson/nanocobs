@@ -18,16 +18,15 @@ std::atomic<int> s_iterations{ 250u };
 TEST_CASE("many random payloads") {
   auto const thread_proc{ [](unsigned seed) {
     std::mt19937 mt{ seed };  // deterministic
-    byte_vec_t source(LEN), dec(LEN), enc(COBS_ENCODE_MAX(LEN));
+    byte_vec_t src(LEN), dec(LEN), enc(COBS_ENCODE_MAX(LEN));
 
     while (--s_iterations > 0) {
-      std::generate(source.begin(), source.end(), [&]() { return byte_t(mt()); });
-      memset(source.data() + 1000, 0xAA, 256 * 10);  // nonzero run
+      std::generate(src.begin(), src.end(), [&]() { return byte_t(mt()); });
+      memset(src.data() + 1000, 0xAA, 256 * 10);  // nonzero run
 
       size_t enc_len{ 0u };
-      REQUIRE(
-          cobs_encode(source.data(), source.size(), enc.data(), enc.size(), &enc_len) ==
-          COBS_RET_SUCCESS);
+      REQUIRE(cobs_encode(src.data(), src.size(), enc.data(), enc.size(), &enc_len) ==
+              COBS_RET_SUCCESS);
 
       REQUIRE(enc_len >= LEN);
       REQUIRE(enc_len <= COBS_ENCODE_MAX(LEN));
@@ -40,7 +39,7 @@ TEST_CASE("many random payloads") {
               COBS_RET_SUCCESS);
 
       REQUIRE(dec_len == LEN);
-      REQUIRE(source == dec);
+      REQUIRE(src == dec);
     }
   } };
 
