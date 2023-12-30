@@ -81,6 +81,7 @@ jobs:
         run: make -j
 
   win:
+    name: windows (msvc, ${{ matrix.architecture }})
     runs-on: windows-latest
 
     strategy:
