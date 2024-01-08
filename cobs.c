@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Unlicense OR 0BSD
 #include "cobs.h"
 
 #define COBS_ISV COBS_INPLACE_SENTINEL_VALUE

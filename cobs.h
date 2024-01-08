@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Unlicense OR 0BSD
 #pragma once
 
 #include <stdbool.h>
