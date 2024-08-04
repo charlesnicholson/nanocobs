@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: Unlicense OR 0BSD
+
+// nanocobs v0.1.0
 #pragma once
 
 #include <stdbool.h>
