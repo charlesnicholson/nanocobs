@@ -6,23 +6,23 @@
 #include <cstring>
 #include <numeric>
 
-static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
+static constexpr byte_t CSV = COBS_TINYFRAME_SENTINEL_VALUE;
 
 namespace {
 cobs_ret_t cobs_decode_vec(byte_vec_t &v) {
-  return cobs_decode_inplace(v.data(), static_cast<unsigned>(v.size()));
+  return cobs_decode_tinyframe(v.data(), static_cast<unsigned>(v.size()));
 }
 }  // namespace
 
 TEST_CASE("Inplace decoding validation") {
   SUBCASE("Null buffer pointer") {
-    REQUIRE(cobs_decode_inplace(nullptr, 123) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_decode_tinyframe(nullptr, 123) == COBS_RET_ERR_BAD_ARG);
   }
 
   SUBCASE("Invalid buf_len") {
     char buf;
-    REQUIRE(cobs_decode_inplace(&buf, 0) == COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_decode_inplace(&buf, 1) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_decode_tinyframe(&buf, 0) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_decode_tinyframe(&buf, 1) == COBS_RET_ERR_BAD_ARG);
   }
 
   SUBCASE("Invalid payload") {
@@ -123,16 +123,16 @@ void verify_decode_inplace(unsigned char *inplace, size_t payload_len) {
                   payload_len);
 
   REQUIRE(external_len == payload_len);
-  REQUIRE(cobs_decode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS);
+  REQUIRE(cobs_decode_tinyframe(inplace, payload_len + 2) == COBS_RET_SUCCESS);
   REQUIRE(byte_vec_t(inplace + 1, inplace + external_len + 1) ==
           byte_vec_t(external.data(), external.data() + external_len));
 }
 
 void fill_encode_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
-  inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+  inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
   memset(inplace + 1, f, payload_len);
-  inplace[payload_len + 1] = COBS_INPLACE_SENTINEL_VALUE;
-  REQUIRE_MESSAGE(cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS,
+  inplace[payload_len + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
+  REQUIRE_MESSAGE(cobs_encode_tinyframe(inplace, payload_len + 2) == COBS_RET_SUCCESS,
                   payload_len);
 }
 }  // namespace
@@ -163,24 +163,24 @@ TEST_CASE("Decode: Inplace == External") {
 
   SUBCASE("Fill with zero/one pattern") {
     for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
-      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
       for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = j & 1;
       }
-      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
-      REQUIRE(cobs_encode_inplace(inplace.data(), i + 2) == COBS_RET_SUCCESS);
+      inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
+      REQUIRE(cobs_encode_tinyframe(inplace.data(), i + 2) == COBS_RET_SUCCESS);
       verify_decode_inplace(inplace.data(), i);
     }
   }
 
   SUBCASE("Fill with one/zero pattern") {
     for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
-      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
       }
-      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
-      REQUIRE(cobs_encode_inplace(inplace.data(), i + 2) == COBS_RET_SUCCESS);
+      inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
+      REQUIRE(cobs_encode_tinyframe(inplace.data(), i + 2) == COBS_RET_SUCCESS);
       verify_decode_inplace(inplace.data(), i);
     }
   }

@@ -5,23 +5,23 @@
 #include <cstring>
 #include <numeric>
 
-static constexpr byte_t CSV = COBS_INPLACE_SENTINEL_VALUE;
+static constexpr byte_t CSV = COBS_TINYFRAME_SENTINEL_VALUE;
 
 namespace {
 cobs_ret_t cobs_encode_vec(byte_vec_t &v) {
-  return cobs_encode_inplace(v.data(), v.size());
+  return cobs_encode_tinyframe(v.data(), v.size());
 }
 }  // namespace
 
 TEST_CASE("Inplace encoding validation") {
   SUBCASE("Null buffer pointer") {
-    REQUIRE(cobs_encode_inplace(nullptr, 123) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_encode_tinyframe(nullptr, 123) == COBS_RET_ERR_BAD_ARG);
   }
 
   SUBCASE("Invalid buf_len") {
     char buf;
-    REQUIRE(cobs_encode_inplace(&buf, 0) == COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_encode_inplace(&buf, 1) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_encode_tinyframe(&buf, 0) == COBS_RET_ERR_BAD_ARG);
+    REQUIRE(cobs_encode_tinyframe(&buf, 1) == COBS_RET_ERR_BAD_ARG);
   }
 
   SUBCASE("Invalid sentinel values") {
@@ -133,14 +133,14 @@ void verify_encode_inplace(byte_t *inplace, size_t payload_len) {
                       external.size(),
                       &external_len) == COBS_RET_SUCCESS);
 
-  REQUIRE(cobs_encode_inplace(inplace, payload_len + 2) == COBS_RET_SUCCESS);
+  REQUIRE(cobs_encode_tinyframe(inplace, payload_len + 2) == COBS_RET_SUCCESS);
   REQUIRE(byte_vec_t(inplace, inplace + payload_len + 2) == external);
 }
 
 void fill_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
   memset(inplace + 1, f, payload_len);
-  inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
-  inplace[payload_len + 1] = COBS_INPLACE_SENTINEL_VALUE;
+  inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
+  inplace[payload_len + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
 }
 }  // namespace
 
@@ -170,22 +170,22 @@ TEST_CASE("Encode: Inplace == External") {
 
   SUBCASE("Fill with zero/one pattern") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
-      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
         inplace[j] = j & 1;
       }
-      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
       verify_encode_inplace(inplace, i);
     }
   }
 
   SUBCASE("Fill with one/zero pattern") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
-      inplace[0] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
       for (auto j = 1u; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
       }
-      inplace[i + 1] = COBS_INPLACE_SENTINEL_VALUE;
+      inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
       verify_encode_inplace(inplace, i);
     }
   }

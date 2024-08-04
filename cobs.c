@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: Unlicense OR 0BSD
 #include "cobs.h"
 
-#define COBS_ISV COBS_INPLACE_SENTINEL_VALUE
+#define COBS_TFSV COBS_TINYFRAME_SENTINEL_VALUE
 
 typedef unsigned char cobs_byte_t;
 
-cobs_ret_t cobs_encode_inplace(void *buf, size_t len) {
+cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
   cobs_byte_t *const src = (cobs_byte_t *)buf;
-  if ((src[0] != COBS_ISV) || (src[len - 1] != COBS_ISV)) {
+  if ((src[0] != COBS_TFSV) || (src[len - 1] != COBS_TFSV)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
 
@@ -36,7 +36,7 @@ cobs_ret_t cobs_encode_inplace(void *buf, size_t len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode_inplace(void *buf, size_t const len) {
+cobs_ret_t cobs_decode_tinyframe(void *buf, size_t const len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -56,8 +56,8 @@ cobs_ret_t cobs_decode_inplace(void *buf, size_t const len) {
   if (cur != len - 1) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
-  src[0] = COBS_ISV;
-  src[len - 1] = COBS_ISV;
+  src[0] = COBS_TFSV;
+  src[len - 1] = COBS_TFSV;
   return COBS_RET_SUCCESS;
 }
 
