@@ -114,12 +114,12 @@ if (r != COBS_RET_SUCCESS) { /* handle your error, return / assert, whatever */ 
 
 If you can guarantee that your payloads are shorter than 254 bytes, then you can use the "tinyframe" API, which lets you both decode and encode in-place in a single buffer. The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_tinyframe` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
 
-(Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_INPLACE_SAFE_BUFFER_SIZE`)
+(Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_TINYFRAME_SAFE_BUFFER_SIZE`)
 
 ```
 char buf[64];
-buf[0] = COBS_SENTINEL_VALUE; // You have to do this.
-buf[63] = COBS_SENTINEL_VALUE; // You have to do this.
+buf[0] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
+buf[63] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 
 // Now, fill buf[1 .. 63] with whatever data you want.
 
@@ -135,7 +135,7 @@ if (result == COBS_RET_SUCCESS) {
 
 `cobs_decode_tinyframe` is also provided and offers byte-layout-parity to `cobs_encode_tinyframe`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
 
-Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
+Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_TINYFRAME_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
 
 ```
 char buf[64];
@@ -145,7 +145,7 @@ unsigned const length = you_fill_buf_with_data(buf);
 
 cobs_ret_t const result = cobs_decode_tinyframe(buf, length);
 if (result == COBS_RET_SUCCESS) {
-  // decoding succeeded, 'buf' bytes 0 and length-1 are COBS_SENTINEL_VALUE.
+  // decoding succeeded, 'buf' bytes 0 and length-1 are COBS_TINYFRAME_SENTINEL_VALUE.
   // your data is in 'buf[1 ... length-2]'
 } else {
   // decoding failed, look to 'result' for details.

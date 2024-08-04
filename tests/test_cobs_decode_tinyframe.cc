@@ -63,7 +63,7 @@ TEST_CASE("Inplace decoding") {
   }
 
   SUBCASE("Safe payload, all zero bytes") {
-    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    byte_vec_t buf(COBS_TINYFRAME_SAFE_BUFFER_SIZE);
     std::fill(std::begin(buf), std::end(buf), byte_t{ 0x01 });
     buf[buf.size() - 1] = 0x00;
     REQUIRE(cobs_decode_vec(buf) == COBS_RET_SUCCESS);
@@ -77,7 +77,7 @@ TEST_CASE("Inplace decoding") {
   }
 
   SUBCASE("Safe payload, no zero bytes") {
-    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    byte_vec_t buf(COBS_TINYFRAME_SAFE_BUFFER_SIZE);
     std::iota(std::begin(buf), std::end(buf), byte_t{ 0x00 });
     buf[0] = 0xFF;
     buf[buf.size() - 1] = 0x00;
@@ -138,7 +138,7 @@ void fill_encode_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
 }  // namespace
 
 TEST_CASE("Decode: Inplace == External") {
-  std::array<byte_t, COBS_INPLACE_SAFE_BUFFER_SIZE> inplace;
+  std::array<byte_t, COBS_TINYFRAME_SAFE_BUFFER_SIZE> inplace;
 
   SUBCASE("Fill with zeros") {
     for (auto i{ 0u }; i < inplace.size() - 2; ++i) {

@@ -26,7 +26,7 @@ enum {
   COBS_TINYFRAME_SENTINEL_VALUE = 0x5A,
 
   // In-place encodings that fit in a buffer of this size will always succeed.
-  COBS_INPLACE_SAFE_BUFFER_SIZE = 256
+  COBS_TINYFRAME_SAFE_BUFFER_SIZE = 256
 };
 
 // COBS_ENCODE_MAX
