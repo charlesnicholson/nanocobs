@@ -23,7 +23,7 @@ enum {
   COBS_FRAME_DELIMITER = 0x00,
 
   // In-place encoding mandatory placeholder byte values.
-  COBS_INPLACE_SENTINEL_VALUE = 0x5A,
+  COBS_TINYFRAME_SENTINEL_VALUE = 0x5A,
 
   // In-place encodings that fit in a buffer of this size will always succeed.
   COBS_INPLACE_SAFE_BUFFER_SIZE = 256
@@ -45,7 +45,7 @@ inline constexpr size_t COBS_ENCODE_MAX(size_t DECODED_LEN) {
   (1 + (DECODED_LEN) + (((DECODED_LEN) + 253) / 254) + ((DECODED_LEN) == 0))
 #endif
 
-// cobs_encode_inplace
+// cobs_encode_tinyframe
 //
 // Encode in-place the contents of the provided buffer |buf| of length |len|. Returns
 // COBS_RET_SUCCESS on successful encoding.
@@ -64,9 +64,9 @@ inline constexpr size_t COBS_ENCODE_MAX(size_t DECODED_LEN) {
 //
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are left
 // indeterminate and must not be relied on to be fully encoded or decoded.
-cobs_ret_t cobs_encode_inplace(void *buf, size_t len);
+cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len);
 
-// cobs_decode_inplace
+// cobs_decode_tinyframe
 //
 // Decode in-place the contents of the provided buffer |buf| of length |len|.
 // Returns COBS_RET_SUCCESS on successful decoding.
@@ -84,7 +84,7 @@ cobs_ret_t cobs_encode_inplace(void *buf, size_t len);
 //
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are left
 // indeterminate and must not be relied on to be fully encoded or decoded.
-cobs_ret_t cobs_decode_inplace(void *buf, size_t len);
+cobs_ret_t cobs_decode_tinyframe(void *buf, size_t len);
 
 // cobs_decode
 //

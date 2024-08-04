@@ -7,15 +7,15 @@
 namespace {
 
 void round_trip_inplace(byte_vec_t const &decoded, byte_vec_t const &encoded) {
-  byte_vec_t decoded_inplace{ COBS_INPLACE_SENTINEL_VALUE };
+  byte_vec_t decoded_inplace{ COBS_TINYFRAME_SENTINEL_VALUE };
   decoded_inplace.insert(std::end(decoded_inplace), decoded.begin(), decoded.end());
-  decoded_inplace.push_back(COBS_INPLACE_SENTINEL_VALUE);
+  decoded_inplace.push_back(COBS_TINYFRAME_SENTINEL_VALUE);
 
   byte_vec_t x(decoded_inplace);
 
-  REQUIRE(cobs_encode_inplace(x.data(), x.size()) == COBS_RET_SUCCESS);
+  REQUIRE(cobs_encode_tinyframe(x.data(), x.size()) == COBS_RET_SUCCESS);
   REQUIRE(x == encoded);
-  REQUIRE(cobs_decode_inplace(x.data(), x.size()) == COBS_RET_SUCCESS);
+  REQUIRE(cobs_decode_tinyframe(x.data(), x.size()) == COBS_RET_SUCCESS);
   REQUIRE(x == decoded_inplace);
 }
 

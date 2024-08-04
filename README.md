@@ -24,16 +24,16 @@ Finally, I didn't see as many unit tests as I'd have liked in the other librarie
 
 ## Metrics
 
-It's pretty small, and you probably need either `cobs_[en|de]code_inplace` _or_ `cobs_[en|de]code[_inc*]`, but not both.
+It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or_ `cobs_[en|de]code[_inc*]`, but not both.
 ```
 ❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
 ❯ arm-none-eabi-nm --print-size --size-sort cobs.o
 
 0000011c 0000001e T cobs_encode_inc_end    (30 bytes)
 0000007a 00000022 T cobs_encode_inc_begin  (34 bytes)
-00000048 00000032 T cobs_decode_inplace    (50 bytes)
+00000048 00000032 T cobs_decode_tinyframe  (50 bytes)
 0000013a 00000034 T cobs_encode            (52 bytes)
-00000000 00000048 T cobs_encode_inplace    (72 bytes)
+00000000 00000048 T cobs_encode_tinyframe  (72 bytes)
 0000009c 00000080 T cobs_encode_inc        (128 bytes)
 0000016e 00000090 T cobs_decode            (144 bytes)
 Total 1fe (510 bytes)
@@ -59,6 +59,26 @@ if (result == COBS_RET_SUCCESS) {
   // encoding succeeded, 'encoded' and 'encoded_len' hold details.
 } else {
   // encoding failed, look to 'result' for details.
+}
+```
+
+### Decoding 
+
+Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`. Decoding can always be performed in-place, since the encoded frames are always larger than the decoded data. Simply pass the same buffer to the `encoded` and `decoded` parameters and the frame will be decoded in-place.
+
+```
+char encoded[128];
+unsigned encoded_len;
+get_encoded_data_from_somewhere(encoded, &encoded_len);
+
+char decoded[128];
+unsigned decoded_len;
+cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(decoded), &decoded_len);
+
+if (result == COBS_RET_SUCCESS) {
+  // decoding succeeded, 'decoded' and 'decoded_len' hold details.
+} else {
+  // decoding failed, look to 'result' for details.
 }
 ```
 
@@ -90,9 +110,9 @@ if (r != COBS_RET_SUCCESS) { /* handle your error, return / assert, whatever */ 
    |encoded_len| contains the length of the encoded buffer. */
 ```
 
-### Encoding In-Place
+### Encoding "Tiny Frames"
 
-The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_inplace` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
+If you can guarantee that your payloads are shorter than 254 bytes, then you can use the "tinyframe" API, which lets you both decode and encode in-place in a single buffer. The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_tinyframe` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
 
 (Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_INPLACE_SAFE_BUFFER_SIZE`)
 
@@ -103,7 +123,7 @@ buf[63] = COBS_SENTINEL_VALUE; // You have to do this.
 
 // Now, fill buf[1 .. 63] with whatever data you want.
 
-cobs_ret_t const result = cobs_encode_inplace(buf, 64);
+cobs_ret_t const result = cobs_encode_tinyframe(buf, 64);
 
 if (result == COBS_RET_SUCCESS) {
   // encoding succeeded, 'buf' now holds the encoded data.
@@ -111,30 +131,9 @@ if (result == COBS_RET_SUCCESS) {
   // encoding failed, look to 'result' for details.
 }
 ```
-### Decoding With Separate Buffers
+### Decoding "Tiny Frames"
 
-Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`.
-```
-char encoded[128];
-unsigned encoded_len;
-get_encoded_data_from_somewhere(encoded, &encoded_len);
-
-char decoded[128];
-unsigned decoded_len;
-cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(decoded), &decoded_len);
-
-if (result == COBS_RET_SUCCESS) {
-  // decoding succeeded, 'decoded' and 'decoded_len' hold details.
-} else {
-  // decoding failed, look to 'result' for details.
-}
-```
-
-### Decoding In-Place
-
-There are two ways to decode COBS-encoded data in-place. One is simply by calling `cobs_decode` and pass your buffer to both the `enc` and `out_dec` parameters. Since COBS decoding never needs to revisit decoded bytes, and decoded payloads are always shorter than encoded payloads, this is guaranteed to work.
-
-`cobs_decode_inplace` is also provided and offers byte-layout-parity to `cobs_encode_inplace`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
+`cobs_decode_tinyframe` is also provided and offers byte-layout-parity to `cobs_encode_tinyframe`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
 
 Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
 
@@ -144,7 +143,7 @@ char buf[64];
 // You fill 'buf' with an encoded cobs frame (from uart, etc) that ends with 0x00.
 unsigned const length = you_fill_buf_with_data(buf);
 
-cobs_ret_t const result = cobs_decode_inplace(buf, length);
+cobs_ret_t const result = cobs_decode_tinyframe(buf, length);
 if (result == COBS_RET_SUCCESS) {
   // decoding succeeded, 'buf' bytes 0 and length-1 are COBS_SENTINEL_VALUE.
   // your data is in 'buf[1 ... length-2]'
@@ -152,6 +151,7 @@ if (result == COBS_RET_SUCCESS) {
   // decoding failed, look to 'result' for details.
 }
 ```
+
 ## Developing
 
 `nanocobs` uses [doctest](https://github.com/onqtam/doctest) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
