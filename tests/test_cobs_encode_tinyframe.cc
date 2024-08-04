@@ -76,7 +76,7 @@ TEST_CASE("Inplace encoding") {
   }
 
   SUBCASE("Safe payload, all zero bytes") {
-    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    byte_vec_t buf(COBS_TINYFRAME_SAFE_BUFFER_SIZE);
     std::fill(std::begin(buf), std::end(buf), byte_t{ 0x00 });
     buf[0] = CSV;
     buf[buf.size() - 1] = CSV;
@@ -89,7 +89,7 @@ TEST_CASE("Inplace encoding") {
   }
 
   SUBCASE("Safe payload, no zero bytes") {
-    byte_vec_t buf(COBS_INPLACE_SAFE_BUFFER_SIZE);
+    byte_vec_t buf(COBS_TINYFRAME_SAFE_BUFFER_SIZE);
     std::iota(std::begin(buf), std::end(buf), byte_t{ 0x00 });
     buf[0] = CSV;
     buf[buf.size() - 1] = CSV;
@@ -145,7 +145,7 @@ void fill_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
 }  // namespace
 
 TEST_CASE("Encode: Inplace == External") {
-  byte_t inplace[COBS_INPLACE_SAFE_BUFFER_SIZE];
+  byte_t inplace[COBS_TINYFRAME_SAFE_BUFFER_SIZE];
 
   SUBCASE("Fill with zeros") {
     for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
