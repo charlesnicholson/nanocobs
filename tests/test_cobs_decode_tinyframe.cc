@@ -176,7 +176,7 @@ TEST_CASE("Decode: Inplace == External") {
   SUBCASE("Fill with one/zero pattern") {
     for (auto i{ 0u }; i < inplace.size() - 2; ++i) {
       inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
-      for (auto j = 1u; j < i; ++j) {
+      for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
       }
       inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
