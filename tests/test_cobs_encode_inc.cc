@@ -40,9 +40,9 @@ TEST_CASE("cobs_encode_inc") {
                       .code_idx = 0,
                       .code = 0,
                       .need_advance = 0 };
-  size_t const enc_max{ 1024 };
+  size_t constexpr enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
-  size_t const dec_max{ 1024 };
+  size_t constexpr dec_max{ 1024 };
   byte_vec_t dec_buf(dec_max);
 
   REQUIRE(cobs_encode_inc_begin(enc_buf.data(), enc_max, &ctx) == COBS_RET_SUCCESS);
@@ -136,7 +136,7 @@ TEST_CASE("cobs_encode_inc") {
 
 TEST_CASE("cobs_encode_inc_end") {
   cobs_enc_ctx_t ctx;
-  size_t const enc_max{ 1024 };
+  size_t constexpr enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
   size_t enc_len;
 
@@ -218,9 +218,9 @@ void require_equal(byte_vec_t const &v1, byte_vec_t const &v2) {
 
 TEST_CASE("Single/multi-encode equivalences") {
   cobs_enc_ctx_t ctx;
-  size_t const enc_max{ 4096 };
+  size_t constexpr enc_max{ 4096 };
   byte_vec_t enc_buf(enc_max);
-  size_t const dec_max{ 4096 };
+  size_t constexpr dec_max{ 4096 };
   byte_vec_t dec_buf(dec_max);
 
   REQUIRE(cobs_encode_inc_begin(enc_buf.data(), enc_max, &ctx) == COBS_RET_SUCCESS);
@@ -288,7 +288,7 @@ TEST_CASE("Single/multi-encode equivalences") {
   }
 
   SUBCASE("Header / payload split") {
-    byte_t const h[]{ 0x02, 0x03, 0xCC, 0xDF, 0x13, 0x49 };
+    byte_t constexpr h[]{ 0x02, 0x03, 0xCC, 0xDF, 0x13, 0x49 };
 
     dec_buf.resize(400);
     std::iota(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0x01 });

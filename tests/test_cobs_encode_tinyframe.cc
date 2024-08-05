@@ -5,7 +5,7 @@
 #include <cstring>
 #include <numeric>
 
-static constexpr byte_t CSV = COBS_TINYFRAME_SENTINEL_VALUE;
+static constexpr byte_t CSV{ COBS_TINYFRAME_SENTINEL_VALUE };
 
 namespace {
 cobs_ret_t cobs_encode_vec(byte_vec_t &v) {
@@ -148,30 +148,30 @@ TEST_CASE("Encode: Inplace == External") {
   byte_t inplace[COBS_TINYFRAME_SAFE_BUFFER_SIZE];
 
   SUBCASE("Fill with zeros") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0x00);
       verify_encode_inplace(inplace, i);
     }
   }
 
   SUBCASE("Fill with nonzeros") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0x01);
       verify_encode_inplace(inplace, i);
     }
   }
 
   SUBCASE("Fill with 0xFF") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       fill_inplace(inplace, i, 0xFF);
       verify_encode_inplace(inplace, i);
     }
   }
 
   SUBCASE("Fill with zero/one pattern") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
-      for (auto j = 1u; j < i; ++j) {
+      for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = j & 1;
       }
       inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
@@ -180,9 +180,9 @@ TEST_CASE("Encode: Inplace == External") {
   }
 
   SUBCASE("Fill with one/zero pattern") {
-    for (auto i = 0u; i < sizeof(inplace) - 2; ++i) {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
-      for (auto j = 1u; j < i; ++j) {
+      for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
       }
       inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
