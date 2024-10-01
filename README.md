@@ -121,7 +121,7 @@ char buf[64];
 buf[0] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 buf[63] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 
-// Now, fill buf[1 .. 63] with whatever data you want.
+// Now, fill in buf[1] up to and including buf[62] (so 64 - 2 = 62 bytes of payload data)
 
 cobs_ret_t const result = cobs_encode_tinyframe(buf, 64);
 
