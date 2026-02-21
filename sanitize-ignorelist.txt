@@ -1,5 +1,6 @@
 [memory]
 src:*/stl_tree.h
 src:*/ostream
+src:*/ostream.h
 src:*/iomanip
 src:*/basic_string.h
