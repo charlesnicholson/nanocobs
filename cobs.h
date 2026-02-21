@@ -54,14 +54,14 @@ inline constexpr size_t COBS_ENCODE_MAX(size_t DECODED_LEN) {
 //
 // Because encoding adds leading and trailing bytes, your buffer must reserve bytes 0 and
 // len-1 for the encoding. If the first and last bytes of |buf| are not set to
-// COBS_INPLACE_SENTINEL_VALUE, the function will fail with COBS_RET_ERR_BAD_PAYLOAD.
+// COBS_TINYFRAME_SENTINEL_VALUE, the function will fail with COBS_RET_ERR_BAD_PAYLOAD.
 //
 // If a null pointer or invalid length are provided, the function will fail with
 // COBS_RET_ERR_BAD_ARG.
 //
-// If |len| is less than or equal to COBS_INPLACE_SAFE_BUFFER_SIZE, the contents of |buf|
+// If |len| is less than or equal to COBS_TINYFRAME_SAFE_BUFFER_SIZE, the contents of |buf|
 // will never cause encoding to fail. If |len| is larger than
-// COBS_INPLACE_SAFE_BUFFER_SIZE, encoding can possibly fail with COBS_RET_ERR_BAD_PAYLOAD
+// COBS_TINYFRAME_SAFE_BUFFER_SIZE, encoding can possibly fail with COBS_RET_ERR_BAD_PAYLOAD
 // if there are more than 254 bytes between zeros.
 //
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are left
@@ -74,7 +74,7 @@ cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len);
 // Returns COBS_RET_SUCCESS on successful decoding.
 //
 // Because decoding is in-place, the first and last bytes of |buf| will be set to the value
-// COBS_INPLACE_SENTINEL_VALUE if decoding succeeds. The decoded contents are stored in the
+// COBS_TINYFRAME_SENTINEL_VALUE if decoding succeeds. The decoded contents are stored in the
 // inclusive span defined by buf[1] and buf[len-2].
 //
 // If a null pointer or invalid length are provided, the function will fail with
@@ -150,8 +150,8 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *
 // |dec_len| decoded bytes from |dec| into the buffer that |ctx| was initialized with in
 // cobs_encode_inc_begin.
 //
-// If any of the input pointers are null, or |dec_len| is zero, the function will fail with
-// COBS_RET_ERR_BAD_ARG.
+// If any of the input pointers are null, the function will fail with
+// COBS_RET_ERR_BAD_ARG. If |dec_len| is zero, the function returns COBS_RET_SUCCESS.
 //
 // If the contents pointed to by |dec| can not be encoded in the remaining available buffer
 // space, the function returns COBS_RET_ERR_EXHAUSTED. In this case, |ctx| remains

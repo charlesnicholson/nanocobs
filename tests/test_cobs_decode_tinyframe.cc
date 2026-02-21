@@ -1,6 +1,6 @@
 #include "../cobs.h"
 #include "byte_vec.h"
-#include "doctest.h"
+#include "doctest_wrapper.h"
 
 #include <algorithm>
 #include <cstring>
@@ -39,6 +39,15 @@ TEST_CASE("Inplace decoding validation") {
     buf = byte_vec_t{ 0x02, 0x00, 0x00 };  // jump over an interior 0x00
     REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
     buf = byte_vec_t{ 0x04, 0x01, 0x00, 0x01, 0x00 };  // jump over interior 0x00
+    REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
+  }
+
+  SUBCASE("Code byte jumps well past end of buffer") {
+    byte_vec_t buf{ 0xFF, 0x01, 0x00 };  // code 0xFF claims 254 bytes, only 1 present
+    REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
+    buf = byte_vec_t{ 0x05, 0x01, 0x00 };  // code 5 claims 4 data bytes, only 1 present
+    REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
+    buf = byte_vec_t{ 0x0A, 0x01, 0x02, 0x03, 0x00 };  // code 10, only 3 data bytes
     REQUIRE(cobs_decode_vec(buf) == COBS_RET_ERR_BAD_PAYLOAD);
   }
 }

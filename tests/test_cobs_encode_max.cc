@@ -1,6 +1,6 @@
 #include "cobs_encode_max_c.h"
 #include "../cobs.h"
-#include "doctest.h"
+#include "doctest_wrapper.h"
 
 enum { WORKS_AT_COMPILE_TIME = COBS_ENCODE_MAX(123) };
 

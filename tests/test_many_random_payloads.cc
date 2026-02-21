@@ -1,7 +1,7 @@
 #include "../cobs.h"
 #include "byte_vec.h"
 
-#include "doctest.h"
+#include "doctest_wrapper.h"
 
 #include <algorithm>
 #include <atomic>

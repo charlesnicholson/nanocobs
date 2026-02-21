@@ -1,6 +1,6 @@
 #include "../cobs.h"
 #include "byte_vec.h"
-#include "doctest.h"
+#include "doctest_wrapper.h"
 
 #include <algorithm>
 #include <iomanip>
@@ -309,5 +309,47 @@ TEST_CASE("Single/multi-encode equivalences") {
                       dec_buf.data(),
                       dec_buf.data() + dec_buf.size());
     REQUIRE(enc_buf == encode_single(single_dec));
+  }
+
+  SUBCASE("Exactly 254 nonzero bytes, chunk boundary at 0xFF code block") {
+    // Exercises need_advance: the 254th nonzero byte triggers a 0xFF code flush
+    // at the end of an incremental call, then encode_inc_end must finish correctly.
+    dec_buf.resize(254);
+    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0x01 });
+
+    byte_vec_t const single = encode_single(dec_buf);
+
+    for (size_t chunk : { size_t{1}, size_t{127}, size_t{254} }) {
+      byte_vec_t const incremental = encode_incremental(dec_buf, chunk);
+      require_equal(single, incremental);
+    }
+
+    // Also verify round-trip decode
+    byte_vec_t decoded(254);
+    size_t dec_len{ 0u };
+    REQUIRE(cobs_decode(single.data(), single.size(),
+                        decoded.data(), decoded.size(), &dec_len) == COBS_RET_SUCCESS);
+    REQUIRE(dec_len == 254);
+    REQUIRE(decoded == dec_buf);
+  }
+
+  SUBCASE("Multiple 0xFF code blocks, chunk boundary stress") {
+    // 508 nonzero bytes = two full 0xFF blocks, exercises need_advance twice
+    dec_buf.resize(508);
+    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0xAA });
+
+    byte_vec_t const single = encode_single(dec_buf);
+
+    for (size_t chunk : { size_t{1}, size_t{127}, size_t{254}, size_t{508} }) {
+      byte_vec_t const incremental = encode_incremental(dec_buf, chunk);
+      require_equal(single, incremental);
+    }
+
+    byte_vec_t decoded(508);
+    size_t dec_len{ 0u };
+    REQUIRE(cobs_decode(single.data(), single.size(),
+                        decoded.data(), decoded.size(), &dec_len) == COBS_RET_SUCCESS);
+    REQUIRE(dec_len == 508);
+    REQUIRE(decoded == dec_buf);
   }
 }
