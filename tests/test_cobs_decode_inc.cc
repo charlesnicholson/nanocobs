@@ -17,7 +17,7 @@ TEST_CASE("cobs_decode_inc_begin") {
 }
 
 TEST_CASE("cobs_decode_inc bad args") {
-  cobs_decode_inc_ctx_t ctx;
+  cobs_decode_inc_ctx_t ctx{};
   REQUIRE(cobs_decode_inc_begin(&ctx) == COBS_RET_SUCCESS);
 
   byte_vec_t enc(64), dec(64);

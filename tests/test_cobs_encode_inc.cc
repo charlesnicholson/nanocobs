@@ -132,10 +132,10 @@ TEST_CASE("cobs_encode_inc") {
 }
 
 TEST_CASE("cobs_encode_inc_end") {
-  cobs_enc_ctx_t ctx;
+  cobs_enc_ctx_t ctx{};
   size_t constexpr enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
-  size_t enc_len;
+  size_t enc_len{ 0 };
 
   REQUIRE(cobs_encode_inc_begin(enc_buf.data(), enc_max, &ctx) == COBS_RET_SUCCESS);
 
