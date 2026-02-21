@@ -1,15 +1,4 @@
-SRCS := tests/cobs_encode_max_c.c \
-		tests/test_cobs_encode_max.cc \
-		tests/test_cobs_encode.cc \
-		tests/test_cobs_encode_inc.cc \
-		tests/test_cobs_encode_tinyframe.cc \
-		tests/test_cobs_decode.cc \
-		tests/test_cobs_decode_inc.cc \
-		tests/test_cobs_decode_tinyframe.cc \
-		tests/test_many_random_payloads.cc \
-		tests/test_paper_figures.cc \
-		tests/test_wikipedia.cc \
-		tests/unittest_main.cc
+SRCS := $(wildcard tests/*.c) $(wildcard tests/*.cc)
 
 BUILD_DIR := build
 OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
@@ -17,8 +6,8 @@ DEPS := $(OBJS:.o=.d)
 OS := $(shell uname)
 COMPILER_VERSION := $(shell $(CXX) --version)
 
-CFLAGS = --std=c99
-CXXFLAGS = --std=c++20
+CFLAGS = -std=c99
+CXXFLAGS = -std=c++20
 
 CPPFLAGS += -MMD -MP -Os -g
 
@@ -37,15 +26,15 @@ CPPFLAGS += -Weverything \
 			-Wno-unsafe-buffer-usage \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
+			-Wno-switch-default \
+			-Wno-padded
+CXXFLAGS += -Wno-c++98-compat \
 			-Wno-c++98-compat-bind-to-temporary-copy \
-			-Wno-pre-c++20-compat-pedantic \
-			-Wno-switch-default
+			-Wno-pre-c++20-compat-pedantic
 CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
 endif
-
-CPPFLAGS += -Wno-c++98-compat -Wno-padded
 
 ifdef COBS_SANITIZER
 CPPFLAGS += -fsanitize=$(COBS_SANITIZER) -fsanitize-ignorelist=sanitize-ignorelist.txt
@@ -54,9 +43,6 @@ endif
 
 $(BUILD_DIR)/cobs_unittests: $(OBJS) $(BUILD_DIR)/cobs.c.o Makefile
 	$(CXX) $(LDFLAGS) $(OBJS) $(BUILD_DIR)/cobs.c.o -o $@
-
-$(BUILD_DIR)/cobs.c.o: cobs.c cobs.h Makefile
-	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/%.c.o: %.c Makefile
 	mkdir -p $(dir $@) && $(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
@@ -75,4 +61,3 @@ clean:
 .DEFAULT_GOAL := $(BUILD_DIR)/cobs_unittests.timestamp
 
 -include $(DEPS)
-

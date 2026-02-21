@@ -2,13 +2,14 @@
 #include "byte_vec.h"
 #include "doctest_wrapper.h"
 
+#include <algorithm>
 #include <cstring>
 #include <numeric>
 
 static constexpr byte_t CSV{ COBS_TINYFRAME_SENTINEL_VALUE };
 
 namespace {
-cobs_ret_t cobs_encode_vec(byte_vec_t &v) {
+cobs_ret_t cobs_encode_vec(byte_vec_t& v) {
   return cobs_encode_tinyframe(v.data(), v.size());
 }
 }  // namespace
@@ -68,6 +69,24 @@ TEST_CASE("Inplace encoding") {
     REQUIRE(buf == byte_vec_t{ 0x01, 0x01, 0x00 });
   }
 
+  SUBCASE("Sentinel value (0x5A) as payload data") {
+    byte_vec_t buf{ CSV, CSV, CSV };
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{ 0x02, CSV, 0x00 });
+  }
+
+  SUBCASE("Multiple zero bytes") {
+    byte_vec_t buf{ CSV, 0x00, 0x00, 0x00, CSV };
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{ 0x01, 0x01, 0x01, 0x01, 0x00 });
+  }
+
+  SUBCASE("Mixed nonzero and zero") {
+    byte_vec_t buf{ CSV, 0x11, 0x00, 0x22, CSV };
+    REQUIRE(cobs_encode_vec(buf) == COBS_RET_SUCCESS);
+    REQUIRE(buf == byte_vec_t{ 0x02, 0x11, 0x02, 0x22, 0x00 });
+  }
+
   SUBCASE("Longest possible run of 254 bytes") {
     byte_vec_t buf{ CSV, 0x00 };
     buf.insert(std::end(buf), 254, 1);
@@ -123,8 +142,55 @@ TEST_CASE("Inplace encoding") {
   }
 }
 
+TEST_CASE("Inplace encoding round-trip") {
+  SUBCASE("Small payloads") {
+    for (size_t len : { size_t{ 0 },
+                        size_t{ 1 },
+                        size_t{ 2 },
+                        size_t{ 3 },
+                        size_t{ 10 },
+                        size_t{ 127 } }) {
+      byte_vec_t buf(len + 2);
+      buf[0] = CSV;
+      buf[len + 1] = CSV;
+      for (size_t i{ 1 }; i <= len; ++i) {
+        buf[i] = byte_t(i);
+      }
+      byte_vec_t original(buf.begin() + 1, buf.begin() + 1 + static_cast<long>(len));
+
+      REQUIRE(cobs_encode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+      REQUIRE(buf.back() == 0x00);
+      REQUIRE(std::none_of(buf.data(), buf.data() + buf.size() - 1, [](byte_t b) {
+        return b == 0;
+      }));
+
+      REQUIRE(cobs_decode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+      REQUIRE(buf[0] == CSV);
+      REQUIRE(buf[len + 1] == CSV);
+      REQUIRE(byte_vec_t(buf.begin() + 1, buf.begin() + 1 + static_cast<long>(len)) ==
+              original);
+    }
+  }
+
+  SUBCASE("Payload with zeros") {
+    byte_vec_t buf{ CSV, 0x00, 0x11, 0x00, 0x22, 0x00, CSV };
+    byte_vec_t original(buf.begin() + 1, buf.end() - 1);
+    REQUIRE(cobs_encode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+    REQUIRE(cobs_decode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+    REQUIRE(byte_vec_t(buf.begin() + 1, buf.end() - 1) == original);
+  }
+
+  SUBCASE("Payload containing sentinel value") {
+    byte_vec_t buf{ CSV, CSV, 0x11, CSV, CSV };
+    byte_vec_t original(buf.begin() + 1, buf.end() - 1);
+    REQUIRE(cobs_encode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+    REQUIRE(cobs_decode_tinyframe(buf.data(), buf.size()) == COBS_RET_SUCCESS);
+    REQUIRE(byte_vec_t(buf.begin() + 1, buf.end() - 1) == original);
+  }
+}
+
 namespace {
-void verify_encode_inplace(byte_t *inplace, size_t payload_len) {
+void verify_encode_inplace(byte_t* inplace, size_t payload_len) {
   byte_vec_t external(COBS_ENCODE_MAX(payload_len));
   size_t external_len;
   REQUIRE(cobs_encode(inplace + 1,
@@ -137,7 +203,7 @@ void verify_encode_inplace(byte_t *inplace, size_t payload_len) {
   REQUIRE(byte_vec_t(inplace, inplace + payload_len + 2) == external);
 }
 
-void fill_inplace(byte_t *inplace, size_t payload_len, byte_t f) {
+void fill_inplace(byte_t* inplace, size_t payload_len, byte_t f) {
   memset(inplace + 1, f, payload_len);
   inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
   inplace[payload_len + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
@@ -168,6 +234,13 @@ TEST_CASE("Encode: Inplace == External") {
     }
   }
 
+  SUBCASE("Fill with sentinel value") {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
+      fill_inplace(inplace, i, CSV);
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
   SUBCASE("Fill with zero/one pattern") {
     for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
       inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
@@ -184,6 +257,17 @@ TEST_CASE("Encode: Inplace == External") {
       inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
       for (auto j{ 1u }; j < i; ++j) {
         inplace[j] = (j & 1) ^ 1;
+      }
+      inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
+      verify_encode_inplace(inplace, i);
+    }
+  }
+
+  SUBCASE("Ascending bytes") {
+    for (auto i{ 0u }; i < sizeof(inplace) - 2; ++i) {
+      inplace[0] = COBS_TINYFRAME_SENTINEL_VALUE;
+      for (auto j{ 1u }; j <= i; ++j) {
+        inplace[j] = byte_t(j);
       }
       inplace[i + 1] = COBS_TINYFRAME_SENTINEL_VALUE;
       verify_encode_inplace(inplace, i);

@@ -3,9 +3,7 @@
 #include "doctest_wrapper.h"
 
 #include <algorithm>
-#include <iomanip>
 #include <numeric>
-#include <sstream>
 
 TEST_CASE("cobs_encode_inc_begin") {
   cobs_enc_ctx_t ctx;
@@ -16,6 +14,10 @@ TEST_CASE("cobs_encode_inc_begin") {
     REQUIRE(cobs_encode_inc_begin(buf.data(), 0, &ctx) == COBS_RET_ERR_BAD_ARG);
     REQUIRE(cobs_encode_inc_begin(buf.data(), 1, &ctx) == COBS_RET_ERR_BAD_ARG);
     REQUIRE(cobs_encode_inc_begin(buf.data(), 2, nullptr) == COBS_RET_ERR_BAD_ARG);
+  }
+
+  SUBCASE("enc_max of 2 succeeds") {
+    REQUIRE(cobs_encode_inc_begin(buf.data(), 2, &ctx) == COBS_RET_SUCCESS);
   }
 
   SUBCASE("initializes context") {
@@ -34,12 +36,7 @@ TEST_CASE("cobs_encode_inc_begin") {
 }
 
 TEST_CASE("cobs_encode_inc") {
-  cobs_enc_ctx_t ctx{ .dst = nullptr,
-                      .dst_max = 0,
-                      .cur = 0,
-                      .code_idx = 0,
-                      .code = 0,
-                      .need_advance = 0 };
+  cobs_enc_ctx_t ctx;
   size_t constexpr enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
   size_t constexpr dec_max{ 1024 };
@@ -166,19 +163,28 @@ TEST_CASE("cobs_encode_inc_end") {
     REQUIRE(cobs_encode_inc_end(&ctx, &enc_len) == COBS_RET_SUCCESS);
     REQUIRE(enc_len == 332);
   }
+
+  SUBCASE("Empty payload produces valid frame") {
+    REQUIRE(cobs_encode_inc_end(&ctx, &enc_len) == COBS_RET_SUCCESS);
+    REQUIRE(enc_len == 2);
+    REQUIRE(enc_buf[0] == 0x01);
+    REQUIRE(enc_buf[1] == 0x00);
+  }
 }
 
 namespace {
-byte_vec_t encode_single(byte_vec_t const &dec) {
+byte_vec_t encode_single(byte_vec_t const& dec) {
   byte_vec_t enc(COBS_ENCODE_MAX(dec.size()));
   size_t enc_len{ 0u };
-  REQUIRE(cobs_encode(dec.data(), dec.size(), enc.data(), enc.size(), &enc_len) ==
+  byte_t dummy{ 0 };
+  void const* src_ptr = dec.empty() ? &dummy : dec.data();
+  REQUIRE(cobs_encode(src_ptr, dec.size(), enc.data(), enc.size(), &enc_len) ==
           COBS_RET_SUCCESS);
   enc.resize(enc_len);
   return enc;
 }
 
-byte_vec_t encode_incremental(byte_vec_t const &decoded, size_t chunk_size) {
+byte_vec_t encode_incremental(byte_vec_t const& decoded, size_t chunk_size) {
   byte_vec_t encoded(COBS_ENCODE_MAX(decoded.size()));
 
   cobs_enc_ctx_t ctx;
@@ -197,100 +203,101 @@ byte_vec_t encode_incremental(byte_vec_t const &decoded, size_t chunk_size) {
   return encoded;
 }
 
-void require_equal(byte_vec_t const &v1, byte_vec_t const &v2) {
-  std::ostringstream ss;
-  ss << std::endl << "v1 (" << v1.size() << "):" << std::endl;
-  std::ostringstream ss_v1;
-  ss_v1 << std::hex << std::setfill('0');
-  for (auto const &b : v1) {
-    ss_v1 << std::setw(2) << unsigned{ b } << ' ';
+void verify_equivalence_all_chunks(byte_vec_t const& dec) {
+  byte_vec_t const single = encode_single(dec);
+  for (size_t chunk : { size_t{ 1 },
+                        size_t{ 2 },
+                        size_t{ 3 },
+                        size_t{ 11 },
+                        size_t{ 127 },
+                        size_t{ 253 },
+                        size_t{ 254 },
+                        size_t{ 255 },
+                        size_t{ dec.size() + 1 } }) {
+    REQUIRE(encode_incremental(dec, chunk) == single);
   }
-  ss << ss_v1.str() << std::endl << std::endl << "v2 (" << v2.size() << "):" << std::endl;
-  std::ostringstream ss_v2;
-  ss_v2 << std::hex << std::setfill('0');
-  for (auto const &b : v2) {
-    ss_v2 << std::setw(2) << unsigned{ b } << ' ';
-  }
-  ss << ss_v2.str() << std::endl;
-  REQUIRE_MESSAGE(v1 == v2, ss.str().c_str());
 }
 }  // namespace
 
 TEST_CASE("Single/multi-encode equivalences") {
-  cobs_enc_ctx_t ctx;
-  size_t constexpr enc_max{ 4096 };
-  byte_vec_t enc_buf(enc_max);
-  size_t constexpr dec_max{ 4096 };
-  byte_vec_t dec_buf(dec_max);
-
-  REQUIRE(cobs_encode_inc_begin(enc_buf.data(), enc_max, &ctx) == COBS_RET_SUCCESS);
-
-  SUBCASE("One byte at a time") {
-    for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
-    }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 1);
-    require_equal(single, incremental);
+  SUBCASE("Empty payload") {
+    verify_equivalence_all_chunks({});
   }
 
-  SUBCASE("One byte at a time, all zero payload") {
-    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0 });
-    for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
-    }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 1);
-    require_equal(single, incremental);
+  SUBCASE("Single nonzero byte") {
+    verify_equivalence_all_chunks({ 0x42 });
   }
 
-  SUBCASE("Two bytes at a time") {
-    for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
-    }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 2);
-    require_equal(single, incremental);
+  SUBCASE("Single zero byte") {
+    verify_equivalence_all_chunks({ 0x00 });
   }
 
-  SUBCASE("Three bytes at a time") {
-    for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
-    }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 3);
-    require_equal(single, incremental);
+  SUBCASE("Small payloads") {
+    verify_equivalence_all_chunks({ 0x11, 0x22 });
+    verify_equivalence_all_chunks({ 0x00, 0x00 });
+    verify_equivalence_all_chunks({ 0x11, 0x00, 0x22 });
+    verify_equivalence_all_chunks({ 0x00, 0x11, 0x00 });
   }
 
-  SUBCASE("Eleven bytes at a time") {
+  SUBCASE("Ascending bytes 1500") {
+    byte_vec_t dec(1500);
     for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
+      dec[i] = i & 0xFF;
     }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 11);
-    require_equal(single, incremental);
+    verify_equivalence_all_chunks(dec);
   }
 
-  SUBCASE("Many bytes at a time, all zero payload") {
-    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0 });
-    for (auto i{ 0u }; i < 1500; ++i) {
-      dec_buf[i] = i & 0xFF;
-    }
-    dec_buf.resize(1500);
-    byte_vec_t const single = encode_single(dec_buf);
-    byte_vec_t const incremental = encode_incremental(dec_buf, 31);
-    require_equal(single, incremental);
+  SUBCASE("All zero payload") {
+    verify_equivalence_all_chunks(byte_vec_t(500, 0x00));
+  }
+
+  SUBCASE("All 0xFF payload") {
+    verify_equivalence_all_chunks(byte_vec_t(500, 0xFF));
+  }
+
+  SUBCASE("253 nonzero bytes") {
+    verify_equivalence_all_chunks(byte_vec_t(253, 0x01));
+  }
+
+  SUBCASE("254 nonzero bytes (0xFF boundary)") {
+    verify_equivalence_all_chunks(byte_vec_t(254, 0x01));
+  }
+
+  SUBCASE("255 nonzero bytes (0xFF + 1)") {
+    verify_equivalence_all_chunks(byte_vec_t(255, 0x01));
+  }
+
+  SUBCASE("508 nonzero bytes (two 0xFF blocks)") {
+    verify_equivalence_all_chunks(byte_vec_t(508, 0xAA));
+  }
+
+  SUBCASE("509 nonzero bytes") {
+    verify_equivalence_all_chunks(byte_vec_t(509, 0xAA));
+  }
+
+  SUBCASE("Zeros at 0xFF block boundaries") {
+    byte_vec_t dec(600, 0x42);
+    dec[253] = 0x00;
+    dec[507] = 0x00;
+    verify_equivalence_all_chunks(dec);
+  }
+
+  SUBCASE("Zero immediately after 0xFF boundary") {
+    byte_vec_t dec(300, 0x01);
+    dec[254] = 0x00;
+    verify_equivalence_all_chunks(dec);
   }
 
   SUBCASE("Header / payload split") {
+    cobs_enc_ctx_t ctx;
+    size_t constexpr enc_max{ 4096 };
+    byte_vec_t enc_buf(enc_max);
+
+    REQUIRE(cobs_encode_inc_begin(enc_buf.data(), enc_max, &ctx) == COBS_RET_SUCCESS);
+
     byte_t constexpr h[]{ 0x02, 0x03, 0xCC, 0xDF, 0x13, 0x49 };
 
-    dec_buf.resize(400);
+    byte_vec_t dec_buf(400);
     std::iota(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0x01 });
     dec_buf[4] = 0x00;
     dec_buf[27] = 0x00;
@@ -309,47 +316,5 @@ TEST_CASE("Single/multi-encode equivalences") {
                       dec_buf.data(),
                       dec_buf.data() + dec_buf.size());
     REQUIRE(enc_buf == encode_single(single_dec));
-  }
-
-  SUBCASE("Exactly 254 nonzero bytes, chunk boundary at 0xFF code block") {
-    // Exercises need_advance: the 254th nonzero byte triggers a 0xFF code flush
-    // at the end of an incremental call, then encode_inc_end must finish correctly.
-    dec_buf.resize(254);
-    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0x01 });
-
-    byte_vec_t const single = encode_single(dec_buf);
-
-    for (size_t chunk : { size_t{1}, size_t{127}, size_t{254} }) {
-      byte_vec_t const incremental = encode_incremental(dec_buf, chunk);
-      require_equal(single, incremental);
-    }
-
-    // Also verify round-trip decode
-    byte_vec_t decoded(254);
-    size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(single.data(), single.size(),
-                        decoded.data(), decoded.size(), &dec_len) == COBS_RET_SUCCESS);
-    REQUIRE(dec_len == 254);
-    REQUIRE(decoded == dec_buf);
-  }
-
-  SUBCASE("Multiple 0xFF code blocks, chunk boundary stress") {
-    // 508 nonzero bytes = two full 0xFF blocks, exercises need_advance twice
-    dec_buf.resize(508);
-    std::fill(std::begin(dec_buf), std::end(dec_buf), byte_t{ 0xAA });
-
-    byte_vec_t const single = encode_single(dec_buf);
-
-    for (size_t chunk : { size_t{1}, size_t{127}, size_t{254}, size_t{508} }) {
-      byte_vec_t const incremental = encode_incremental(dec_buf, chunk);
-      require_equal(single, incremental);
-    }
-
-    byte_vec_t decoded(508);
-    size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(single.data(), single.size(),
-                        decoded.data(), decoded.size(), &dec_len) == COBS_RET_SUCCESS);
-    REQUIRE(dec_len == 508);
-    REQUIRE(decoded == dec_buf);
   }
 }
