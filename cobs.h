@@ -54,19 +54,19 @@ inline constexpr size_t COBS_ENCODE_MAX(size_t DECODED_LEN) {
 //
 // Because encoding adds leading and trailing bytes, your buffer must reserve bytes 0 and
 // len-1 for the encoding. If the first and last bytes of |buf| are not set to
-// COBS_INPLACE_SENTINEL_VALUE, the function will fail with COBS_RET_ERR_BAD_PAYLOAD.
+// COBS_TINYFRAME_SENTINEL_VALUE, the function will fail with COBS_RET_ERR_BAD_PAYLOAD.
 //
 // If a null pointer or invalid length are provided, the function will fail with
 // COBS_RET_ERR_BAD_ARG.
 //
-// If |len| is less than or equal to COBS_INPLACE_SAFE_BUFFER_SIZE, the contents of |buf|
+// If |len| is less than or equal to COBS_TINYFRAME_SAFE_BUFFER_SIZE, the contents of |buf|
 // will never cause encoding to fail. If |len| is larger than
-// COBS_INPLACE_SAFE_BUFFER_SIZE, encoding can possibly fail with COBS_RET_ERR_BAD_PAYLOAD
-// if there are more than 254 bytes between zeros.
+// COBS_TINYFRAME_SAFE_BUFFER_SIZE, encoding can possibly fail with
+// COBS_RET_ERR_BAD_PAYLOAD if there are more than 254 bytes between zeros.
 //
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are left
 // indeterminate and must not be relied on to be fully encoded or decoded.
-cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len);
+cobs_ret_t cobs_encode_tinyframe(void* buf, size_t len);
 
 // cobs_decode_tinyframe
 //
@@ -74,8 +74,8 @@ cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len);
 // Returns COBS_RET_SUCCESS on successful decoding.
 //
 // Because decoding is in-place, the first and last bytes of |buf| will be set to the value
-// COBS_INPLACE_SENTINEL_VALUE if decoding succeeds. The decoded contents are stored in the
-// inclusive span defined by buf[1] and buf[len-2].
+// COBS_TINYFRAME_SENTINEL_VALUE if decoding succeeds. The decoded contents are stored in
+// the inclusive span defined by buf[1] and buf[len-2].
 //
 // If a null pointer or invalid length are provided, the function will fail with
 // COBS_RET_ERR_BAD_ARG.
@@ -86,7 +86,7 @@ cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len);
 //
 // If the function returns COBS_RET_ERR_BAD_PAYLOAD, the contents of |buf| are left
 // indeterminate and must not be relied on to be fully encoded or decoded.
-cobs_ret_t cobs_decode_tinyframe(void *buf, size_t len);
+cobs_ret_t cobs_decode_tinyframe(void* buf, size_t len);
 
 // cobs_decode
 //
@@ -101,11 +101,11 @@ cobs_ret_t cobs_decode_tinyframe(void *buf, size_t len);
 //
 // If the decoding exceeds |dec_max| bytes, the function will fail with
 // COBS_RET_ERR_EXHAUSTED.
-cobs_ret_t cobs_decode(void const *enc,
+cobs_ret_t cobs_decode(void const* enc,
                        size_t enc_len,
-                       void *out_dec,
+                       void* out_dec,
                        size_t dec_max,
-                       size_t *out_dec_len);
+                       size_t* out_dec_len);
 
 // cobs_encode
 //
@@ -117,16 +117,16 @@ cobs_ret_t cobs_decode(void const *enc,
 //
 // If the encoding exceeds |enc_max| bytes, the function will fail with
 // COBS_RET_ERR_EXHAUSTED.
-cobs_ret_t cobs_encode(void const *dec,
+cobs_ret_t cobs_encode(void const* dec,
                        size_t dec_len,
-                       void *out_enc,
+                       void* out_enc,
                        size_t enc_max,
-                       size_t *out_enc_len);
+                       size_t* out_enc_len);
 
 // Incremental encoding API
 
 typedef struct cobs_enc_ctx {
-  void *dst;
+  void* dst;
   size_t dst_max;
   size_t cur;
   size_t code_idx;
@@ -142,7 +142,7 @@ typedef struct cobs_enc_ctx {
 //
 // If |out_enc| or |out_ctx| are null, or if |enc_max| is not large enough to hold the
 // smallest possible encoding, the function will return COBS_RET_ERR_BAD_ARG.
-cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *out_ctx);
+cobs_ret_t cobs_encode_inc_begin(void* out_enc, size_t enc_max, cobs_enc_ctx_t* out_ctx);
 
 // cobs_encode_inc
 //
@@ -150,8 +150,8 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *
 // |dec_len| decoded bytes from |dec| into the buffer that |ctx| was initialized with in
 // cobs_encode_inc_begin.
 //
-// If any of the input pointers are null, or |dec_len| is zero, the function will fail with
-// COBS_RET_ERR_BAD_ARG.
+// If any of the input pointers are null, the function will fail with
+// COBS_RET_ERR_BAD_ARG. If |dec_len| is zero, the function returns COBS_RET_SUCCESS.
 //
 // If the contents pointed to by |dec| can not be encoded in the remaining available buffer
 // space, the function returns COBS_RET_ERR_EXHAUSTED. In this case, |ctx| remains
@@ -160,7 +160,7 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *
 //
 // If the contents of |dec| are successfully encoded, the function returns
 // COBS_RET_SUCCESS.
-cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec_src, size_t dec_len);
+cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t* ctx, void const* dec_src, size_t dec_len);
 
 // cobs_encode_inc_end
 //
@@ -173,7 +173,7 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec_src, size_t dec_
 // cobs_encode_inc_begin holds the full COBS-encoded frame.
 //
 // If null pointers are provided, the function returns COBS_RET_ERR_BAD_ARG.
-cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len);
+cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx, size_t* out_enc_len);
 
 // Incremental decoding API
 
@@ -187,18 +187,18 @@ typedef struct cobs_decode_inc_ctx {
 } cobs_decode_inc_ctx_t;
 
 typedef struct cobs_decode_inc_args {
-  void const *enc_src;  // pointer to current position of encoded payload
-  void *dec_dst;        // pointer to decoded output buffer.
+  void const* enc_src;  // pointer to current position of encoded payload
+  void* dec_dst;        // pointer to decoded output buffer.
   size_t enc_src_max;   // length of the |src| input buffer.
   size_t dec_dst_max;   // length of the |dst| output buffer.
 } cobs_decode_inc_args_t;
 
-cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx);
-cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
-                           cobs_decode_inc_args_t const *args,
-                           size_t *out_enc_src_len,  // how many bytes of src were read
-                           size_t *out_dec_dst_len,  // how many bytes written to dst
-                           bool *out_decode_complete);
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t* ctx);
+cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t* ctx,
+                           cobs_decode_inc_args_t const* args,
+                           size_t* out_enc_src_len,  // how many bytes of src were read
+                           size_t* out_dec_dst_len,  // how many bytes written to dst
+                           bool* out_decode_complete);
 
 #ifdef __cplusplus
 }

@@ -5,12 +5,12 @@
 
 typedef unsigned char cobs_byte_t;
 
-cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len) {
+cobs_ret_t cobs_encode_tinyframe(void* buf, size_t len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  cobs_byte_t *const src = (cobs_byte_t *)buf;
+  cobs_byte_t* const src = (cobs_byte_t*)buf;
   if ((src[0] != COBS_TFSV) || (src[len - 1] != COBS_TFSV)) {
     return COBS_RET_ERR_BAD_PAYLOAD;
   }
@@ -36,15 +36,18 @@ cobs_ret_t cobs_encode_tinyframe(void *buf, size_t len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode_tinyframe(void *buf, size_t const len) {
+cobs_ret_t cobs_decode_tinyframe(void* buf, size_t const len) {
   if (!buf || (len < 2)) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  cobs_byte_t *const src = (cobs_byte_t *)buf;
+  cobs_byte_t* const src = (cobs_byte_t*)buf;
   size_t ofs, cur = 0;
   while ((cur < len) && ((ofs = src[cur]) != COBS_FRAME_DELIMITER)) {
     src[cur] = 0;
+    if (cur + ofs > len) {
+      return COBS_RET_ERR_BAD_PAYLOAD;
+    }
     for (size_t i = 1; i < ofs; ++i) {
       if (src[cur + i] == 0) {
         return COBS_RET_ERR_BAD_PAYLOAD;
@@ -61,11 +64,11 @@ cobs_ret_t cobs_decode_tinyframe(void *buf, size_t const len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_encode(void const *dec,
+cobs_ret_t cobs_encode(void const* dec,
                        size_t dec_len,
-                       void *out_enc,
+                       void* out_enc,
                        size_t enc_max,
-                       size_t *out_enc_len) {
+                       size_t* out_enc_len) {
   if (!out_enc_len) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -81,7 +84,7 @@ cobs_ret_t cobs_encode(void const *dec,
   return cobs_encode_inc_end(&ctx, out_enc_len);
 }
 
-cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *out_ctx) {
+cobs_ret_t cobs_encode_inc_begin(void* out_enc, size_t enc_max, cobs_enc_ctx_t* out_ctx) {
   if (!out_enc || !out_ctx) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -98,7 +101,7 @@ cobs_ret_t cobs_encode_inc_begin(void *out_enc, size_t enc_max, cobs_enc_ctx_t *
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec, size_t dec_len) {
+cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t* ctx, void const* dec, size_t dec_len) {
   if (!ctx || !dec) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -115,8 +118,8 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec, size_t dec_len)
   unsigned code = ctx->code;
   int need_advance = ctx->need_advance;
 
-  cobs_byte_t const *const src = (cobs_byte_t const *)dec;
-  cobs_byte_t *const dst = (cobs_byte_t *)ctx->dst;
+  cobs_byte_t const* const src = (cobs_byte_t const*)dec;
+  cobs_byte_t* const dst = (cobs_byte_t*)ctx->dst;
   size_t src_idx = 0;
 
   if (need_advance) {
@@ -146,7 +149,7 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec, size_t dec_len)
           return COBS_RET_ERR_EXHAUSTED;
         }
       } else {
-        need_advance = !dec_len;
+        need_advance = 1;
       }
     }
     ++src_idx;
@@ -159,12 +162,12 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t *ctx, void const *dec, size_t dec_len)
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len) {
+cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx, size_t* out_enc_len) {
   if (!ctx || !out_enc_len) {
     return COBS_RET_ERR_BAD_ARG;
   }
 
-  cobs_byte_t *const dst = (cobs_byte_t *)ctx->dst;
+  cobs_byte_t* const dst = (cobs_byte_t*)ctx->dst;
   size_t cur = ctx->cur;
   dst[ctx->code_idx] = (cobs_byte_t)ctx->code;
   dst[cur++] = COBS_FRAME_DELIMITER;
@@ -172,11 +175,11 @@ cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t *ctx, size_t *out_enc_len) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode(void const *enc,
+cobs_ret_t cobs_decode(void const* enc,
                        size_t enc_len,
-                       void *out_dec,
+                       void* out_dec,
                        size_t dec_max,
-                       size_t *out_dec_len) {
+                       size_t* out_dec_len) {
   if (!enc || !out_dec || !out_dec_len) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -205,7 +208,7 @@ cobs_ret_t cobs_decode(void const *enc,
   return decode_complete ? COBS_RET_SUCCESS : COBS_RET_ERR_EXHAUSTED;
 }
 
-cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
+cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t* ctx) {
   if (!ctx) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -213,11 +216,11 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t *ctx) {
   return COBS_RET_SUCCESS;
 }
 
-cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
-                           cobs_decode_inc_args_t const *args,
-                           size_t *out_enc_src_len,
-                           size_t *out_dec_dst_len,
-                           bool *out_decode_complete) {
+cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t* ctx,
+                           cobs_decode_inc_args_t const* args,
+                           size_t* out_enc_src_len,
+                           size_t* out_dec_dst_len,
+                           bool* out_decode_complete) {
   if (!ctx || !args || !out_enc_src_len || !out_dec_dst_len || !out_decode_complete ||
       !args->dec_dst || !args->enc_src) {
     return COBS_RET_ERR_BAD_ARG;
@@ -228,8 +231,8 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t *ctx,
 
   size_t const src_max = args->enc_src_max;
   size_t const dst_max = args->dec_dst_max;
-  cobs_byte_t const *src_b = (cobs_byte_t const *)args->enc_src;
-  cobs_byte_t *dst_b = (cobs_byte_t *)args->dec_dst;
+  cobs_byte_t const* src_b = (cobs_byte_t const*)args->enc_src;
+  cobs_byte_t* dst_b = (cobs_byte_t*)args->dec_dst;
   unsigned block = ctx->block, code = ctx->code;
   enum cobs_decode_inc_state state = ctx->state;
 
