@@ -36,7 +36,7 @@ TEST_CASE("cobs_encode_inc_begin") {
 }
 
 TEST_CASE("cobs_encode_inc") {
-  cobs_enc_ctx_t ctx;
+  cobs_enc_ctx_t ctx{};
   size_t constexpr enc_max{ 1024 };
   byte_vec_t enc_buf(enc_max);
   size_t constexpr dec_max{ 1024 };
