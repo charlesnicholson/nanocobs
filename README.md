@@ -51,10 +51,10 @@ Compile `cobs.c` and link it into your app. `#include "path/to/cobs.h"` in your 
 Fill a buffer with the data you'd like to encode. Prepare a larger buffer to hold the encoded data. Then, call `cobs_encode` to encode the data into the destination buffer.
 
 ```c
-char decoded[64];
+unsigned char decoded[64];
 unsigned const len = fill_with_decoded_data(decoded);
 
-char encoded[128];
+unsigned char encoded[128];
 unsigned encoded_len;
 cobs_ret_t const result = cobs_encode(decoded, len, encoded, sizeof(encoded), &encoded_len);
 
@@ -70,11 +70,11 @@ if (result == COBS_RET_SUCCESS) {
 Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`.
 
 ```c
-char encoded[128];
+unsigned char encoded[128];
 unsigned encoded_len;
 get_encoded_data_from_somewhere(encoded, &encoded_len);
 
-char decoded[128];
+unsigned char decoded[128];
 unsigned decoded_len;
 cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(decoded), &decoded_len);
 
@@ -168,7 +168,7 @@ If you can guarantee that your payloads are shorter than 254 bytes, you can use 
 (Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_TINYFRAME_SAFE_BUFFER_SIZE`)
 
 ```c
-char buf[64];
+unsigned char buf[64];
 buf[0] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 buf[63] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 
@@ -190,7 +190,7 @@ if (result == COBS_RET_SUCCESS) {
 Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_tinyframe` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_TINYFRAME_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
 
 ```c
-char buf[64];
+unsigned char buf[64];
 
 // You fill 'buf' with an encoded cobs frame (from uart, etc) that ends with 0x00.
 unsigned const length = you_fill_buf_with_data(buf);
