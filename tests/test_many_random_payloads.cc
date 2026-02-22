@@ -105,31 +105,71 @@ TEST_CASE("random incremental encode vs single-shot") {
                         enc_single.size(),
                         &enc_single_len) == COBS_RET_SUCCESS);
 
-    // Incremental encode with random chunk sizes
-    byte_vec_t enc_inc(COBS_ENCODE_MAX(len));
-    cobs_enc_ctx_t ctx;
-    REQUIRE(cobs_encode_inc_begin(enc_inc.data(), enc_inc.size(), &ctx) ==
+    // Incremental encode with random src AND dst chunk sizes
+    byte_vec_t work_buf(255);
+    cobs_enc_ctx_t ctx{};
+    REQUIRE(cobs_encode_inc_begin(&ctx, work_buf.data(), work_buf.size()) ==
             COBS_RET_SUCCESS);
 
-    size_t pos{ 0 };
-    while (pos < len) {
-      size_t const chunk = min(size_t(1 + (mt() % 300)), len - pos);
-      REQUIRE(cobs_encode_inc(&ctx, src.data() + pos, chunk) == COBS_RET_SUCCESS);
-      pos += chunk;
+    byte_vec_t enc_inc;
+    size_t src_pos{ 0 };
+
+    while (src_pos < len) {
+      size_t const src_chunk = min(size_t(1 + (mt() % 300)), len - src_pos);
+      size_t const dst_chunk = 1 + (mt() % 512);
+      byte_vec_t dst(dst_chunk);
+
+      cobs_encode_inc_args_t args{};
+      args.dec_src = src.data() + src_pos;
+      args.enc_dst = dst.data();
+      args.dec_src_max = src_chunk;
+      args.enc_dst_max = dst_chunk;
+
+      size_t src_consumed{}, dst_written{};
+      REQUIRE(cobs_encode_inc(&ctx, &args, &src_consumed, &dst_written) ==
+              COBS_RET_SUCCESS);
+      enc_inc.insert(enc_inc.end(), dst.data(), dst.data() + dst_written);
+      src_pos += src_consumed;
+
+      // If not all source consumed, keep feeding remaining
+      size_t chunk_remaining = src_chunk - src_consumed;
+      while (chunk_remaining > 0) {
+        size_t const dc2 = 1 + (mt() % 512);
+        byte_vec_t dst2(dc2);
+        cobs_encode_inc_args_t args2{};
+        args2.dec_src = src.data() + src_pos;
+        args2.enc_dst = dst2.data();
+        args2.dec_src_max = chunk_remaining;
+        args2.enc_dst_max = dc2;
+
+        size_t sc2{}, dw2{};
+        REQUIRE(cobs_encode_inc(&ctx, &args2, &sc2, &dw2) == COBS_RET_SUCCESS);
+        enc_inc.insert(enc_inc.end(), dst2.data(), dst2.data() + dw2);
+        src_pos += sc2;
+        chunk_remaining -= sc2;
+      }
     }
 
-    size_t enc_inc_len{ 0u };
-    REQUIRE(cobs_encode_inc_end(&ctx, &enc_inc_len) == COBS_RET_SUCCESS);
+    // Finish
+    bool finished{ false };
+    while (!finished) {
+      size_t const dc = 1 + (mt() % 64);
+      byte_vec_t dst(dc);
+      size_t dw{};
+      REQUIRE(cobs_encode_inc_end(&ctx, dst.data(), dc, &dw, &finished) ==
+              COBS_RET_SUCCESS);
+      enc_inc.insert(enc_inc.end(), dst.data(), dst.data() + dw);
+    }
 
-    REQUIRE(enc_inc_len == enc_single_len);
-    REQUIRE(byte_vec_t(enc_inc.data(), enc_inc.data() + enc_inc_len) ==
-            byte_vec_t(enc_single.data(), enc_single.data() + enc_single_len));
+    REQUIRE(enc_inc.size() == enc_single_len);
+    REQUIRE(enc_inc == byte_vec_t(enc_single.data(), enc_single.data() + enc_single_len));
 
     // Verify round-trip decode
     byte_vec_t dec(len);
     size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(enc_inc.data(), enc_inc_len, dec.data(), dec.size(), &dec_len) ==
-            COBS_RET_SUCCESS);
+    REQUIRE(
+        cobs_decode(enc_inc.data(), enc_inc.size(), dec.data(), dec.size(), &dec_len) ==
+        COBS_RET_SUCCESS);
     REQUIRE(dec_len == len);
     REQUIRE(dec == src);
   }

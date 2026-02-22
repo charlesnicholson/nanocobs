@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Unlicense OR 0BSD
 
-// nanocobs v0.1.0, Charles Nicholson (charles.nicholson@gmail.com)
+// nanocobs v0.2.0, Charles Nicholson (charles.nicholson@gmail.com)
 #pragma once
 
 #include <stdbool.h>
@@ -10,6 +10,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef unsigned char cobs_byte_t;
 
 typedef enum {
   COBS_RET_SUCCESS = 0,
@@ -126,54 +128,61 @@ cobs_ret_t cobs_encode(void const* dec,
 // Incremental encoding API
 
 typedef struct cobs_enc_ctx {
-  void* dst;
-  size_t dst_max;
-  size_t cur;
-  size_t code_idx;
-  unsigned code;
-  int need_advance;
+  enum cobs_encode_inc_state {
+    COBS_ENCODE_ACCUMULATE,
+    COBS_ENCODE_FLUSHING,
+    COBS_ENCODE_FLUSH_FINAL,
+    COBS_ENCODE_WRITE_DELIM,
+    COBS_ENCODE_DONE
+  } state;
+  cobs_byte_t* buf;
+  uint8_t code;
+  uint8_t buf_len;
+  uint8_t flush_pos;
+  uint8_t prev_was_ff;
 } cobs_enc_ctx_t;
+
+typedef struct cobs_encode_inc_args {
+  void const* dec_src;
+  void* enc_dst;
+  size_t dec_src_max;
+  size_t enc_dst_max;
+} cobs_encode_inc_args_t;
 
 // cobs_encode_inc_begin
 //
-// Begin an incremental encoding of data into |out_enc|. The intermediate encoding state is
-// stored in |out_ctx|, which can then be passed into calls to cobs_encode_inc. Returns
-// COBS_RET_SUCCESS if |out_ctx| can be used in future calls to cobs_encode_inc.
+// Begin an incremental encoding. The intermediate encoding state is stored in |ctx|.
+// |buf| is a user-provided work buffer that must be at least 255 bytes and must remain
+// valid until cobs_encode_inc_end completes.
 //
-// If |out_enc| or |out_ctx| are null, or if |enc_max| is not large enough to hold the
-// smallest possible encoding, the function will return COBS_RET_ERR_BAD_ARG.
-cobs_ret_t cobs_encode_inc_begin(void* out_enc, size_t enc_max, cobs_enc_ctx_t* out_ctx);
+// If |ctx| or |buf| are null, or if |buf_max| < 255, returns COBS_RET_ERR_BAD_ARG.
+cobs_ret_t cobs_encode_inc_begin(cobs_enc_ctx_t* ctx, void* buf, size_t buf_max);
 
 // cobs_encode_inc
 //
-// Continue an encoding in progress with the new |dec| buffer of length |dec_len|. Encodes
-// |dec_len| decoded bytes from |dec| into the buffer that |ctx| was initialized with in
-// cobs_encode_inc_begin.
+// Encode source bytes from |args->dec_src|, writing completed COBS blocks to
+// |args->enc_dst|. The number of source bytes consumed is written to |out_dec_src_len|
+// and the number of output bytes written is written to |out_enc_dst_len|.
 //
-// If any of the input pointers are null, the function will fail with
-// COBS_RET_ERR_BAD_ARG. If |dec_len| is zero, the function returns COBS_RET_SUCCESS.
-//
-// If the contents pointed to by |dec| can not be encoded in the remaining available buffer
-// space, the function returns COBS_RET_ERR_EXHAUSTED. In this case, |ctx| remains
-// unchanged and incremental encoding can be attempted again with different data, or
-// finished with cobs_encode_inc_end.
-//
-// If the contents of |dec| are successfully encoded, the function returns
-// COBS_RET_SUCCESS.
-cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t* ctx, void const* dec_src, size_t dec_len);
+// Returns COBS_RET_SUCCESS on success.
+// If any pointers are null, returns COBS_RET_ERR_BAD_ARG.
+cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t* ctx,
+                           cobs_encode_inc_args_t const* args,
+                           size_t* out_dec_src_len,
+                           size_t* out_enc_dst_len);
 
 // cobs_encode_inc_end
 //
-// Finish an incremental encoding by writing the final code and delimiter.
-// Returns COBS_RET_SUCCESS on success, and no further calls to cobs_encode_inc or
-// cobs_encode_inc_end can be safely made until |ctx| is re-initialized via a new call to
-// cobs_encode_inc_begin.
+// Flush the final block and trailing delimiter to |enc_dst|. May require multiple calls
+// if the output buffer is small. The number of bytes written is stored in
+// |out_enc_dst_len|, and |out_finished| is set to true when encoding is fully complete.
 //
-// The final encoded length is written to |out_enc_len|, and the buffer passed to
-// cobs_encode_inc_begin holds the full COBS-encoded frame.
-//
-// If null pointers are provided, the function returns COBS_RET_ERR_BAD_ARG.
-cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx, size_t* out_enc_len);
+// If null pointers are provided, returns COBS_RET_ERR_BAD_ARG.
+cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx,
+                               void* enc_dst,
+                               size_t enc_dst_max,
+                               size_t* out_enc_dst_len,
+                               bool* out_finished);
 
 // Incremental decoding API
 

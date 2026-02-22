@@ -37,7 +37,8 @@ byte_vec_t decode(byte_vec_t const& enc) {
 }  // namespace
 
 TEST_CASE("Encoding validation") {
-  byte_t enc[32], dec[32];
+  byte_t enc[32], dec[32]{};
+
   size_t constexpr enc_n{ sizeof(enc) };
   size_t constexpr dec_n{ sizeof(dec) };
   size_t enc_len;

@@ -2,7 +2,7 @@
 
 `nanocobs` is a C99 implementation of the [Consistent Overhead Byte Stuffing](https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing) ("COBS") algorithm, defined in the [paper](http://www.stuartcheshire.org/papers/COBSforToN.pdf) by Stuart Cheshire and Mary Baker.
 
-Users can encode and decode data in-place or into separate target buffers. Encoding can be incremental; users can encode multiple small buffers (e.g. header, then payloads) into one target. The `nanocobs` runtime requires no extra memory overhead. No standard library headers are included, and no standard library functions are called.
+Users can encode and decode data in-place or into separate target buffers. Encoding and decoding can both be incremental, streaming data through small caller-provided buffers. The `nanocobs` runtime requires no extra memory overhead. No standard library headers are included, and no standard library functions are called.
 
 ## Rationale
 
@@ -18,40 +18,43 @@ You probably only need `nanocobs` for things like inter-chip communications prot
 
 There are a few out there, but I haven't seen any that optionally encode in-place. This can be handy if you're memory-constrained and would enjoy CPU + RAM optimizations that come from using small frames. Also, the cost of in-place decoding is only as expensive as the number of zeroes in your payload; exploiting that if you're designing your own protocols can make decoding very fast.
 
-None of the other COBS implementations I saw supported incremental encoding. It's often the case in communication stacks that a layer above the link provides a tightly-sized payload buffer, and the link has to encode both a header _and_ this payload into a single frame. That requires an extra buffer for assembling which then immediately gets encoded into yet another buffer. With incremental encoding, a header structure can be created on the stack and encoded into the target, then the payload can follow into the same target.
+None of the other COBS implementations I saw supported incremental encoding and decoding. It's often the case in communication stacks that a layer above the link provides a tightly-sized payload buffer, and the link has to encode both a header _and_ this payload into a single frame. That requires an extra buffer for assembling which then immediately gets encoded into yet another buffer. With incremental encoding, data can be streamed through small buffers without ever needing to allocate the full encoded frame.
 
 Finally, I didn't see as many unit tests as I'd have liked in the other libraries, especially around invalid payload handling. Framing protocols make for lovely attack surfaces, and malicious COBS frames can easily instruct decoders to jump outside of the frame itself.
 
 ## Metrics
 
-It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or_ `cobs_[en|de]code[_inc*]`, but not both.
+It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or_ `cobs_[en|de]code[_inc*]`, but not all of them.
 ```
 ❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
 ❯ arm-none-eabi-nm --print-size --size-sort cobs.o
 
-0000011c 0000001e T cobs_encode_inc_end    (30 bytes)
-0000007a 00000022 T cobs_encode_inc_begin  (34 bytes)
-00000048 00000032 T cobs_decode_tinyframe  (50 bytes)
-0000013a 00000034 T cobs_encode            (52 bytes)
-00000000 00000048 T cobs_encode_tinyframe  (72 bytes)
-0000009c 00000080 T cobs_encode_inc        (128 bytes)
-0000016e 00000090 T cobs_decode            (144 bytes)
-Total 1fe (510 bytes)
+000002c4 0000000e T cobs_decode_inc_begin  (14 bytes)
+00000128 0000001c T cobs_encode_inc_begin  (28 bytes)
+00000000 00000022 t flush_block            (34 bytes)
+00000396 00000044 T cobs_decode            (68 bytes)
+0000006a 00000048 T cobs_decode_tinyframe  (72 bytes)
+00000022 00000048 T cobs_encode_tinyframe  (72 bytes)
+000000b2 00000076 T cobs_encode            (118 bytes)
+00000212 000000b2 T cobs_encode_inc_end    (178 bytes)
+000002d2 000000c4 T cobs_decode_inc        (196 bytes)
+00000144 000000ce T cobs_encode_inc        (206 bytes)
+Total 3da (986 bytes)
 ```
 
 ## Usage
 
 Compile `cobs.c` and link it into your app. `#include "path/to/cobs.h"` in your source code. Call functions.
 
-### Encoding With Separate Buffers
+### Encoding
 
 Fill a buffer with the data you'd like to encode. Prepare a larger buffer to hold the encoded data. Then, call `cobs_encode` to encode the data into the destination buffer.
 
-```
-char decoded[64];
+```c
+unsigned char decoded[64];
 unsigned const len = fill_with_decoded_data(decoded);
 
-char encoded[128];
+unsigned char encoded[128];
 unsigned encoded_len;
 cobs_ret_t const result = cobs_encode(decoded, len, encoded, sizeof(encoded), &encoded_len);
 
@@ -62,16 +65,16 @@ if (result == COBS_RET_SUCCESS) {
 }
 ```
 
-### Decoding 
+### Decoding
 
-Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`. Decoding can always be performed in-place, since the encoded frames are always larger than the decoded data. Simply pass the same buffer to the `encoded` and `decoded` parameters and the frame will be decoded in-place.
+Decoding works similarly; receive an encoded buffer from somewhere, prepare a buffer to hold the decoded data, and call `cobs_decode`.
 
-```
-char encoded[128];
+```c
+unsigned char encoded[128];
 unsigned encoded_len;
 get_encoded_data_from_somewhere(encoded, &encoded_len);
 
-char decoded[128];
+unsigned char decoded[128];
 unsigned decoded_len;
 cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(decoded), &decoded_len);
 
@@ -84,40 +87,88 @@ if (result == COBS_RET_SUCCESS) {
 
 ### Incremental Encoding
 
-Sometimes it's helpful to be able to encode multiple separate buffers into one target. To do this, use the `cobs_encode_inc` family of functions: initialize a `cobx_enc_ctx_t` in `cobs_encode_inc_begin`, then call `cobs_encode_inc` multiple times, and finish encoding with `cobs_encode_inc_end`.
+The incremental encoding API lets you stream COBS-encoded data through small buffers. Each call to `cobs_encode_inc` takes per-call source and destination buffers, reporting how many bytes were consumed and written. A 255-byte work buffer (provided by the caller) holds the current in-progress block internally.
 
-```
+This is ideal for memory-constrained embedded systems that can't allocate `COBS_ENCODE_MAX(n)` bytes up front.
+
+```c
+unsigned char work_buf[255];       // user-provided, must remain valid until end()
 cobs_enc_ctx_t ctx;
-char encoded[128];
-cobs_ret_t r = cobs_encode_inc_begin(encoded, 128, &ctx);
-if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+cobs_ret_t r = cobs_encode_inc_begin(&ctx, work_buf, sizeof(work_buf));
 
-char header[8];
-unsigned const header_len = get_header_from_somewhere(header);
-r = cobs_encode_inc(&ctx, header, header_len); // encode the header
-if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+unsigned char header[8];
+unsigned header_len = get_header(header);
 
-char const *payload;
-unsigned const payload_len = get_payload_from_somewhere(&payload);
-r = cobs_encode_inc(&ctx, payload, payload_len); // encode the payload
-if (r != COBS_RET_SUCCESS) { /* handle the error */ }
+unsigned char out[64];             // small output buffer, reused each call
+size_t src_consumed, dst_written;
 
-unsigned encoded_len;
-r = cobs_encode_inc_end(&ctx, &encoded_len);
-if (r != COBS_RET_SUCCESS) { /* handle your error, return / assert, whatever */ }
+cobs_encode_inc_args_t args;
+args.dec_src = header;
+args.enc_dst = out;
+args.dec_src_max = header_len;
+args.enc_dst_max = sizeof(out);
+r = cobs_encode_inc(&ctx, &args, &src_consumed, &dst_written);
+// send out[0..dst_written) downstream
 
-/* At this point, |encoded| contains the encoded header and payload.
-   |encoded_len| contains the length of the encoded buffer. */
+unsigned char const *payload;
+unsigned payload_len = get_payload(&payload);
+
+// Feed payload in chunks; small output buffers are fine
+size_t pos = 0;
+while (pos < payload_len) {
+  args.dec_src = payload + pos;
+  args.enc_dst = out;
+  args.dec_src_max = payload_len - pos;
+  args.enc_dst_max = sizeof(out);
+  r = cobs_encode_inc(&ctx, &args, &src_consumed, &dst_written);
+  // send out[0..dst_written) downstream
+  pos += src_consumed;
+}
+
+// Flush the final block + delimiter (may need multiple calls with tiny buffers)
+bool finished = false;
+while (!finished) {
+  r = cobs_encode_inc_end(&ctx, out, sizeof(out), &dst_written, &finished);
+  // send out[0..dst_written) downstream
+}
 ```
 
-### Encoding "Tiny Frames"
+If your output buffer is large enough (e.g. `COBS_ENCODE_MAX(n)` bytes), each call consumes all source bytes and `end()` finishes in one call. With smaller output buffers, the encoder pauses mid-flush and resumes on the next call.
 
-If you can guarantee that your payloads are shorter than 254 bytes, then you can use the "tinyframe" API, which lets you both decode and encode in-place in a single buffer. The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_tinyframe` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
+### Incremental Decoding
+
+The incremental decoding API mirrors the encoding API. Each call to `cobs_decode_inc` takes per-call source and destination buffers, reporting how many encoded bytes were consumed, how many decoded bytes were written, and whether the frame delimiter has been reached.
+
+```c
+cobs_decode_inc_ctx_t ctx;
+cobs_ret_t r = cobs_decode_inc_begin(&ctx);
+
+unsigned char enc[64];             // small input buffer, filled from uart/etc
+unsigned char dec[64];             // small output buffer
+size_t src_consumed, dst_written;
+bool complete = false;
+
+while (!complete) {
+  unsigned enc_len = read_encoded_chunk(enc, sizeof(enc));
+
+  cobs_decode_inc_args_t args;
+  args.enc_src = enc;
+  args.dec_dst = dec;
+  args.enc_src_max = enc_len;
+  args.dec_dst_max = sizeof(dec);
+  r = cobs_decode_inc(&ctx, &args, &src_consumed, &dst_written, &complete);
+  // process dec[0..dst_written) upstream
+}
+```
+
+### Tinyframe Encoding
+
+If you can guarantee that your payloads are shorter than 254 bytes, you can use the tinyframe API to encode and decode in-place in a single buffer. The COBS protocol requires an extra byte at the beginning and end of the payload. If encoding and decoding in-place, it becomes your responsibility to reserve these extra bytes. It's easy to mess this up and just put your own data at byte 0, but your data must start at byte 1. For safety and sanity, `cobs_encode_tinyframe` will error with `COBS_RET_ERR_BAD_PAYLOAD` if the first and last bytes aren't explicitly set to the sentinel value. You have to put them there.
 
 (Note that `64` is an arbitrary size in this example, you can use any size you want up to `COBS_TINYFRAME_SAFE_BUFFER_SIZE`)
 
-```
-char buf[64];
+```c
+unsigned char buf[64];
 buf[0] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 buf[63] = COBS_TINYFRAME_SENTINEL_VALUE; // You have to do this.
 
@@ -131,14 +182,15 @@ if (result == COBS_RET_SUCCESS) {
   // encoding failed, look to 'result' for details.
 }
 ```
-### Decoding "Tiny Frames"
 
-`cobs_decode_tinyframe` is also provided and offers byte-layout-parity to `cobs_encode_tinyframe`. This lets you, for example, decode a payload, change some bytes, and re-encode it all in the same buffer:
+### Tinyframe Decoding
 
-Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_inplace` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_TINYFRAME_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
+`cobs_decode_tinyframe` offers byte-layout-parity with `cobs_encode_tinyframe`. This lets you decode a payload, change some bytes, and re-encode it all in the same buffer.
 
-```
-char buf[64];
+Accumulate data from your source until you encounter a COBS frame delimiter byte of `0x00`. Once you've got that, call `cobs_decode_tinyframe` on that region of a buffer to do an in-place decoding. The zeroth and final bytes of your payload will be replaced with the `COBS_TINYFRAME_SENTINEL_VALUE` bytes that, were you _encoding_ in-place, you would have had to place there anyway.
+
+```c
+unsigned char buf[64];
 
 // You fill 'buf' with an encoded cobs frame (from uart, etc) that ends with 0x00.
 unsigned const length = you_fill_buf_with_data(buf);
