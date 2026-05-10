@@ -127,14 +127,16 @@ cobs_ret_t cobs_encode(void const* dec,
 
 // Incremental encoding API
 
+typedef enum {
+  COBS_ENCODE_ACCUMULATE,
+  COBS_ENCODE_FLUSHING,
+  COBS_ENCODE_FLUSH_FINAL,
+  COBS_ENCODE_WRITE_DELIM,
+  COBS_ENCODE_DONE
+} cobs_encode_inc_state_t;
+
 typedef struct cobs_enc_ctx {
-  enum cobs_encode_inc_state {
-    COBS_ENCODE_ACCUMULATE,
-    COBS_ENCODE_FLUSHING,
-    COBS_ENCODE_FLUSH_FINAL,
-    COBS_ENCODE_WRITE_DELIM,
-    COBS_ENCODE_DONE
-  } state;
+  cobs_encode_inc_state_t state;
   cobs_byte_t* buf;
   uint8_t code;
   uint8_t buf_len;
@@ -186,12 +188,14 @@ cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx,
 
 // Incremental decoding API
 
+typedef enum {
+  COBS_DECODE_READ_CODE,
+  COBS_DECODE_RUN,
+  COBS_DECODE_FINISH_RUN
+} cobs_decode_inc_state_t;
+
 typedef struct cobs_decode_inc_ctx {
-  enum cobs_decode_inc_state {
-    COBS_DECODE_READ_CODE,
-    COBS_DECODE_RUN,
-    COBS_DECODE_FINISH_RUN
-  } state;
+  cobs_decode_inc_state_t state;
   uint8_t block, code;
 } cobs_decode_inc_ctx_t;
 

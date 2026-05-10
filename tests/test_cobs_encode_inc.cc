@@ -28,7 +28,7 @@ TEST_CASE("cobs_encode_inc_begin") {
     ctx.flush_pos = 42;
     REQUIRE(cobs_encode_inc_begin(&ctx, work_buf.data(), work_buf.size()) ==
             COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.buf == work_buf.data());
     REQUIRE(ctx.code == 1);
     REQUIRE(ctx.buf_len == 1);
@@ -94,7 +94,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &dst_len) == COBS_RET_SUCCESS);
     REQUIRE(src_len == 3);
     REQUIRE(dst_len == 0);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 4);
     REQUIRE(ctx.buf_len == 4);
   }
@@ -113,7 +113,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(dst_len == 2);
     REQUIRE(enc_buf[0] == 0x02);
     REQUIRE(enc_buf[1] == 0x12);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 1);
     REQUIRE(ctx.buf_len == 1);
     REQUIRE(ctx.prev_was_ff == 0);
@@ -134,7 +134,7 @@ TEST_CASE("cobs_encode_inc") {
     for (size_t i = 1; i < 255; ++i) {
       REQUIRE(enc_buf[i] == 0x01);
     }
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 1);
     REQUIRE(ctx.buf_len == 1);
     REQUIRE(ctx.prev_was_ff == 1);
@@ -161,7 +161,7 @@ TEST_CASE("cobs_encode_inc") {
         cobs_encode_inc_end(&ctx, enc_buf.data(), enc_buf.size(), &dst_len, &finished) ==
         COBS_RET_SUCCESS);
     REQUIRE(finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
 
     size_t src_len{};
     cobs_encode_inc_args_t args{};
@@ -181,7 +181,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 0, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSH_FINAL);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSH_FINAL);
 
     size_t src_len{};
     cobs_encode_inc_args_t args{};
@@ -199,7 +199,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_WRITE_DELIM);
+    REQUIRE(ctx.state == COBS_ENCODE_WRITE_DELIM);
 
     size_t src_len{};
     cobs_encode_inc_args_t args{};
@@ -223,7 +223,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(src_len == 2);
     REQUIRE(dst_len == 1);
     REQUIRE(enc_buf[0] == 0x02);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
 
     // Continue flushing with another call
     cobs_encode_inc_args_t args2{};
@@ -234,7 +234,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc(&ctx, &args2, &src_len, &dst_len) == COBS_RET_SUCCESS);
     REQUIRE(dst_len == 1);
     REQUIRE(enc_buf[1] == 0x12);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
   }
 
   SUBCASE("flush completes then accumulates more source in same call") {
@@ -248,7 +248,7 @@ TEST_CASE("cobs_encode_inc") {
     args.dec_src_max = 2;
     args.enc_dst_max = 1;
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &dst_len) == COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
 
     // Now call with output room AND new source — should finish flush then consume source
     dec_buf[0] = 0x34;
@@ -260,7 +260,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(src_len == 1);        // source byte consumed
     REQUIRE(dst_len == 1);        // remaining flush byte written
     REQUIRE(enc_buf[1] == 0x12);  // flushed data byte
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 2);  // 0x34 accumulated
     REQUIRE(ctx.buf_len == 2);
   }
@@ -277,7 +277,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &dst_len) == COBS_RET_SUCCESS);
     REQUIRE(src_len == 2);
     REQUIRE(dst_len == 0);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 3);
     REQUIRE(ctx.buf_len == 3);
   }
@@ -295,7 +295,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &dst_len) == COBS_RET_SUCCESS);
     REQUIRE(src_len == 2);  // consumed up to and including the zero
     REQUIRE(dst_len == 0);  // no output (couldn't flush)
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
     REQUIRE(ctx.flush_pos == 0);  // nothing flushed yet
   }
 
@@ -318,7 +318,7 @@ TEST_CASE("cobs_encode_inc") {
     REQUIRE(enc_buf[1] == 0x11);
     REQUIRE(enc_buf[2] == 0x02);
     REQUIRE(enc_buf[3] == 0x22);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
   }
 }
 
@@ -416,7 +416,7 @@ TEST_CASE("cobs_encode_inc_end") {
             COBS_RET_SUCCESS);
     REQUIRE(dst_len == 0);
     REQUIRE(!finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSH_FINAL);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSH_FINAL);
   }
 
   SUBCASE("end state progression: ACCUMULATE to DONE") {
@@ -429,28 +429,28 @@ TEST_CASE("cobs_encode_inc_end") {
     args.dec_src_max = 1;
     args.enc_dst_max = enc_buf.size();
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &inc_dst_len) == COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
 
     // 1 byte output: ACCUMULATE → FLUSH_FINAL, flush 1 of 2 bytes
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
     REQUIRE(dst_len == 1);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSH_FINAL);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSH_FINAL);
 
     // 1 byte output: finish FLUSH_FINAL → WRITE_DELIM, no room for delimiter
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data() + 1, 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
     REQUIRE(dst_len == 1);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_WRITE_DELIM);
+    REQUIRE(ctx.state == COBS_ENCODE_WRITE_DELIM);
 
     // 1 byte output: write delimiter → DONE
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data() + 2, 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(finished);
     REQUIRE(dst_len == 1);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
     REQUIRE(enc_buf[0] == 0x02);
     REQUIRE(enc_buf[1] == 0x42);
     REQUIRE(enc_buf[2] == 0x00);
@@ -461,7 +461,7 @@ TEST_CASE("cobs_encode_inc_end") {
         cobs_encode_inc_end(&ctx, enc_buf.data(), enc_buf.size(), &dst_len, &finished) ==
         COBS_RET_SUCCESS);
     REQUIRE(finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
 
     // Repeated calls return finished with zero bytes written
     REQUIRE(
@@ -481,7 +481,7 @@ TEST_CASE("cobs_encode_inc_end") {
     args.dec_src_max = dec.size();
     args.enc_dst_max = 1;  // only room for 1 byte
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &inc_dst_len) == COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
 
     // end() should finish the flush, then finalize
     byte_vec_t result(enc_buf.data(), enc_buf.data() + inc_dst_len);
@@ -507,12 +507,12 @@ TEST_CASE("cobs_encode_inc_end") {
     REQUIRE(
         cobs_encode_inc_end(&ctx, enc_buf.data(), enc_buf.size(), &dst_len, &finished) ==
         COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
 
     // Reinitialize
     REQUIRE(cobs_encode_inc_begin(&ctx, work_buf.data(), work_buf.size()) ==
             COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_ACCUMULATE);
+    REQUIRE(ctx.state == COBS_ENCODE_ACCUMULATE);
     REQUIRE(ctx.code == 1);
     REQUIRE(ctx.buf_len == 1);
     REQUIRE(ctx.flush_pos == 0);
@@ -549,7 +549,7 @@ TEST_CASE("cobs_encode_inc_end") {
     REQUIRE(finished);
     REQUIRE(dst_len == 1);
     REQUIRE(enc_buf[inc_dst_len] == 0x00);  // delimiter only, no trailing code byte
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
   }
 
   SUBCASE("prev_was_ff with accumulated data goes to FLUSH_FINAL") {
@@ -571,7 +571,7 @@ TEST_CASE("cobs_encode_inc_end") {
         cobs_encode_inc_end(&ctx, enc_buf.data() + inc_dst_len, 1, &dst_len, &finished) ==
         COBS_RET_SUCCESS);
     REQUIRE(!finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSH_FINAL);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSH_FINAL);
   }
 
   SUBCASE("zero output in WRITE_DELIM makes no progress") {
@@ -579,14 +579,14 @@ TEST_CASE("cobs_encode_inc_end") {
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_WRITE_DELIM);
+    REQUIRE(ctx.state == COBS_ENCODE_WRITE_DELIM);
 
     // Now call with 0 output
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 0, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
     REQUIRE(dst_len == 0);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_WRITE_DELIM);
+    REQUIRE(ctx.state == COBS_ENCODE_WRITE_DELIM);
   }
 
   SUBCASE("zero output in FLUSHING makes no progress") {
@@ -599,14 +599,14 @@ TEST_CASE("cobs_encode_inc_end") {
     args.dec_src_max = dec.size();
     args.enc_dst_max = 0;  // can't flush at all
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &inc_dst_len) == COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
 
     // end() with 0 output should make no progress
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 0, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
     REQUIRE(!finished);
     REQUIRE(dst_len == 0);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
   }
 
   SUBCASE("FLUSHING completes then prev_was_ff shortcut fires") {
@@ -619,7 +619,7 @@ TEST_CASE("cobs_encode_inc_end") {
     args.dec_src_max = dec.size();
     args.enc_dst_max = 200;  // not enough for full 255-byte block
     REQUIRE(cobs_encode_inc(&ctx, &args, &src_len, &inc_dst_len) == COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSHING);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSHING);
     REQUIRE(ctx.prev_was_ff == 1);
 
     // end() with large output: FLUSHING → ACCUMULATE (prev_was_ff shortcut) → WRITE_DELIM
@@ -630,7 +630,7 @@ TEST_CASE("cobs_encode_inc_end") {
                                 &dst_len,
                                 &finished) == COBS_RET_SUCCESS);
     REQUIRE(finished);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_DONE);
+    REQUIRE(ctx.state == COBS_ENCODE_DONE);
     // Output = remaining flush bytes + delimiter (no trailing code byte)
     REQUIRE(enc_buf[inc_dst_len + dst_len - 1] == 0x00);
   }
@@ -648,7 +648,7 @@ TEST_CASE("cobs_encode_inc_end") {
 
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 0, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_FLUSH_FINAL);
+    REQUIRE(ctx.state == COBS_ENCODE_FLUSH_FINAL);
 
     // Resume with enough space
     REQUIRE(
@@ -665,7 +665,7 @@ TEST_CASE("cobs_encode_inc_end") {
     // Get to WRITE_DELIM
     REQUIRE(cobs_encode_inc_end(&ctx, enc_buf.data(), 1, &dst_len, &finished) ==
             COBS_RET_SUCCESS);
-    REQUIRE(ctx.state == cobs_enc_ctx_t::COBS_ENCODE_WRITE_DELIM);
+    REQUIRE(ctx.state == COBS_ENCODE_WRITE_DELIM);
     REQUIRE(enc_buf[0] == 0x01);
 
     // Resume — should write just the delimiter

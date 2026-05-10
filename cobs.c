@@ -170,7 +170,7 @@ cobs_ret_t cobs_encode_inc(cobs_enc_ctx_t* ctx,
   cobs_byte_t* const buf = ctx->buf;
   unsigned code = ctx->code;
   unsigned buf_len = ctx->buf_len;
-  enum cobs_encode_inc_state state = ctx->state;
+  cobs_encode_inc_state_t state = ctx->state;
 
   for (;;) {
     if (state == COBS_ENCODE_FLUSHING) {
@@ -225,7 +225,7 @@ cobs_ret_t cobs_encode_inc_end(cobs_enc_ctx_t* ctx,
 
   cobs_byte_t* const dst = (cobs_byte_t*)enc_dst;
   size_t dst_idx = 0;
-  enum cobs_encode_inc_state state = ctx->state;
+  cobs_encode_inc_state_t state = ctx->state;
 
   for (;;) {
     switch (state) {
@@ -341,7 +341,7 @@ cobs_ret_t cobs_decode_inc(cobs_decode_inc_ctx_t* ctx,
   cobs_byte_t const* src_b = (cobs_byte_t const*)args->enc_src;
   cobs_byte_t* dst_b = (cobs_byte_t*)args->dec_dst;
   unsigned block = ctx->block, code = ctx->code;
-  enum cobs_decode_inc_state state = ctx->state;
+  cobs_decode_inc_state_t state = ctx->state;
 
   while (src_idx < src_max) {
     switch (state) {

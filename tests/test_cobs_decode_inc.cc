@@ -10,10 +10,9 @@ TEST_CASE("cobs_decode_inc_begin") {
   REQUIRE(cobs_decode_inc_begin(nullptr) == COBS_RET_ERR_BAD_ARG);
 
   cobs_decode_inc_ctx_t c;
-  c.state = cobs_decode_inc_ctx_t::cobs_decode_inc_state(
-      cobs_decode_inc_ctx_t::COBS_DECODE_READ_CODE + 1);
+  c.state = cobs_decode_inc_state_t(COBS_DECODE_READ_CODE + 1);
   REQUIRE(cobs_decode_inc_begin(&c) == COBS_RET_SUCCESS);
-  REQUIRE(c.state == cobs_decode_inc_ctx_t::COBS_DECODE_READ_CODE);
+  REQUIRE(c.state == COBS_DECODE_READ_CODE);
 }
 
 TEST_CASE("cobs_decode_inc bad args") {

@@ -30,7 +30,8 @@ CPPFLAGS += -Weverything \
 			-Wno-padded
 CXXFLAGS += -Wno-c++98-compat \
 			-Wno-c++98-compat-bind-to-temporary-copy \
-			-Wno-pre-c++20-compat-pedantic
+			-Wno-pre-c++20-compat-pedantic \
+			-Wno-nrvo
 CFLAGS += -Wno-declaration-after-statement
 else
 CPPFLAGS += -Wconversion
