@@ -93,7 +93,12 @@ jobs:
       - name: Build
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars${{ matrix.architecture }}.bat"
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set "VSINSTALL=%%i"
+          if not defined VSINSTALL (
+            echo Could not locate a Visual Studio installation via vswhere 1>&2
+            exit /b 1
+          )
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvars${{ matrix.architecture }}.bat" || exit /b 1
           call make-win.bat
 
   all-checks-pass:
