@@ -14,6 +14,15 @@
 #endif
 #endif
 
+// MSVC 19.51+ (VS 2026) rejects doctest's forward declarations of std types
+// (warning C5285: specializing std templates is forbidden by N5014). Have
+// doctest include the real std headers instead of forward-declaring them.
+#ifdef _MSC_VER
+#ifndef DOCTEST_CONFIG_USE_STD_HEADERS
+#define DOCTEST_CONFIG_USE_STD_HEADERS
+#endif
+#endif
+
 #include "doctest.h"
 
 #ifdef __GNUC__
