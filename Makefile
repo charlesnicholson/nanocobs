@@ -27,6 +27,7 @@ CPPFLAGS += -Weverything \
 			-Wno-poison-system-directories \
 			-Wno-format-pedantic \
 			-Wno-switch-default \
+			-Wno-thread-safety-negative \
 			-Wno-padded
 CXXFLAGS += -Wno-c++98-compat \
 			-Wno-c++98-compat-bind-to-temporary-copy \
