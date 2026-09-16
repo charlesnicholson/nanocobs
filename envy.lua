@@ -1,5 +1,5 @@
--- The Arm cross compiler `make size` uses and the Python the qemu probes are driven
--- by, so neither needs a system-wide install. The cache lives under build/.
+-- The cross compilers the size target and the qemu probes need, plus the Python that
+-- drives them, so none of it needs a system-wide install.
 
 -- @envy schema "1"
 -- @envy version "0.3.2"
@@ -26,3 +26,11 @@ PACKAGES = {
     options = { version = "3.13.14", release = "20260623",
                 provide_python = true, provide_python3 = true } },
 }
+
+-- Microchip publishes avr8-gnu-toolchain for linux x86_64 only, so the 16-bit probe
+-- is a linux-only target; elsewhere it is simply absent rather than different.
+if envy.PLATFORM == "linux" then
+  table.insert(PACKAGES, { spec = "local.avrgcc@r0",
+                           source = "envy/local.avrgcc.lua",
+                           options = { version = "3.7.0.1796" } })
+end

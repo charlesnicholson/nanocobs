@@ -182,11 +182,15 @@ jobs:
         with:
           path: build/envy-cache
           key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      # qemu stays an apt package: its Debian dependency closure is 27 shared
+      # libraries, so bundling it through envy would be re-implementing apt.
       - name: qemu
         run: |
           apt-get update -qq
           DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             --no-install-recommends qemu-system-arm qemu-system-misc
+      - name: Toolchains
+        run: ./bin/envy sync
       - name: Differential probe
         run: ./bin/python3 tests/qemu/run.py ${{ matrix.probe.args }}
 
