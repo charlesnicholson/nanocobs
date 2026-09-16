@@ -4,10 +4,27 @@ on:
   pull_request:
     branches: [ main ]
 
+  # A release is tag-driven: the whole matrix below runs against the tag, and only
+  # if it passes does the release job publish the assets.
+  push:
+    tags:
+      - 'v*'
+
   schedule:
     - cron: '0 2 * * 0'  # Weekly
 
 jobs:
+  # The checked-in cobs.h must stay unversioned; a release stamps the tag into it.
+  # release.py is standard library only, so the runner's own python3 is enough.
+  version-placeholder:
+    name: version placeholder intact
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Placeholder intact
+        run: python3 release.py --check
+
   sanitizers:
     name: sanitizer (${{ matrix.sanitizer }})
     runs-on: ubuntu-latest
@@ -195,8 +212,39 @@ jobs:
         run: ./bin/python3 tests/qemu/run.py ${{ matrix.probe.args }}
 
   all-checks-pass:
-    needs: [sanitizers, linux, macos, win, arm-cm4, swar-configs, exhaustive, qemu]
+    needs: [version-placeholder, sanitizers, linux, macos, win, arm-cm4, swar-configs,
+            exhaustive, qemu]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done
 
+  release:
+    needs: [all-checks-pass]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: read  # release.py reads the titles of the pull requests it links
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # release.py walks back to the previous tag for the notes
+
+      # Stamps the tag into cobs.h, zips it up with cobs.c, and composes the notes.
+      # Run it locally to see exactly what a tag would ship.
+      - name: Prepare the release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 release.py --tag "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --out build/release
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file build/release/release_notes.txt \
+            "build/release/nanocobs-${GITHUB_REF_NAME}.zip"

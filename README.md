@@ -262,3 +262,23 @@ if (result == COBS_RET_SUCCESS) {
 `nanocobs` uses [doctest](https://github.com/onqtam/doctest) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. `make test-all` adds an exhaustive tier that is too slow for the normal edit loop, `make bench` builds and runs the throughput benchmark, and `make size` reports Cortex-M4 code size. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
 
 The presubmit workflow compiles `nanocobs` on macOS, Linux (gcc) 32/64, Windows (msvc) 32/64. It also builds weekly against a fresh docker image so I know when newer stricter compilers break it.
+
+### Releases
+
+Releases are tag-driven. Pushing a `v*` tag runs the full matrix against it, and only if
+everything passes does the release job publish `nanocobs-<tag>.zip`, holding just `cobs.c`
+and `cobs.h`. GitHub attaches its own source snapshots too; those are the whole repository,
+tests included.
+
+The version lives in exactly one place, and it isn't the repository: `cobs.h` carries a
+`@COBS_VERSION@` placeholder that the release stamps with the tag, so nothing checked in
+can disagree with what shipped. `release.py --check` guards the placeholder in presubmit.
+To see exactly what a tag would ship, run it yourself:
+
+```
+python3 release.py --tag v0.3.0 --repo charlesnicholson/nanocobs --out build/release
+```
+
+That writes the zip and the release notes -- the pull requests that landed since the
+previous tag -- without publishing anything. It needs `gh` authenticated to read pull
+request titles, and nothing else outside the standard library.
