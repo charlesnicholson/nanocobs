@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Placeholder intact
         run: python3 release.py --check
 
@@ -43,7 +43,7 @@ jobs:
         sanitizer: [ "memory", "address", "safe-stack", "undefined" ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: CC=clang CXX=clang++ COBS_SANITIZER=${{ matrix.sanitizer }} make -j
 
@@ -60,9 +60,9 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache the envy toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build/envy-cache
           key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
@@ -96,7 +96,7 @@ jobs:
         architecture: [32, 64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: ${{ matrix.compiler.env }} COBS_LINUXARCH=${{ matrix.architecture }} make -j
 
@@ -104,7 +104,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: make -j
 
@@ -117,7 +117,7 @@ jobs:
         architecture: [32, 64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         shell: cmd
         run: |
@@ -148,7 +148,7 @@ jobs:
         word_bits: [8, 16, 32, 64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and test
         run: COBS_SWAR_WORD_BITS=${{ matrix.word_bits }} make -j
 
@@ -166,7 +166,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build and run the slow test tier
         run: CC=clang CXX=clang++ COBS_SANITIZER=address make test-all -j
 
@@ -193,9 +193,9 @@ jobs:
           - { name: "fault injection", args: "--target cm3 --expect-fail" }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Cache the envy toolchain
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build/envy-cache
           key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
@@ -228,7 +228,7 @@ jobs:
       pull-requests: read  # release.py reads the titles of the pull requests it links
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # release.py walks back to the previous tag for the notes
 
