@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <ios>
 #include <random>
 #include <string>
 #include <vector>

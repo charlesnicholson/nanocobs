@@ -2,6 +2,14 @@
 
 #include <avr/io.h>
 
+void probe_init(void) {
+  // qemu's USART0 stays silent until the transmitter is actually enabled.
+  UBRR0H = 0;
+  UBRR0L = 8;  // ~115200 at 16 MHz
+  UCSR0B = (unsigned char)(1u << TXEN0);
+  UCSR0C = (unsigned char)((1u << UCSZ01) | (1u << UCSZ00));
+}
+
 static void put(char c) {
   while (!(UCSR0A & (1 << UDRE0))) {
   }

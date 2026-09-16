@@ -6,10 +6,12 @@ actually that wide. Needs the cross compiler and qemu-system-{avr,arm}.
 """
 
 import argparse
+import os
 import pathlib
 import shutil
 import subprocess
 import sys
+import time
 
 _TIMEOUT_SEC = 300
 
@@ -19,22 +21,21 @@ _TARGETS = {
     "avr": {
         "cc": "avr-gcc",
         "cflags": ["-mmcu=atmega2560"],
+        "ldflags": [],
         "io": "io_avr.c",
         "qemu": ["qemu-system-avr", "-machine", "mega2560", "-nographic",
                  "-serial", "mon:stdio", "-bios"],
-        # The guest cannot halt qemu-system-avr, so the probe spins and the
-        # timeout ends the run.
-        "spins": True,
     },
     # lm3s6965evb is a Cortex-M3: 32-bit, ARMv7-M, so unaligned access and the
-    # 32-bit SWAR default are both live. Semihosting gives stdout and exit().
+    # 32-bit SWAR default are both live. io_cm3.c supplies the vector table and
+    # startup; without them the image never reaches its reset vector.
     "cm3": {
         "cc": "arm-none-eabi-gcc",
-        "cflags": ["-mcpu=cortex-m3", "-mthumb", "--specs=rdimon.specs"],
-        "io": "io_stdio.c",
+        "cflags": ["-mcpu=cortex-m3", "-mthumb"],
+        "ldflags": ["-nostartfiles", "-nostdlib", "-Tcm3.ld"],
+        "io": "io_cm3.c",
         "qemu": ["qemu-system-arm", "-M", "lm3s6965evb", "-nographic",
                  "-semihosting-config", "enable=on,target=native", "-kernel"],
-        "spins": False,
     },
 }
 
@@ -60,10 +61,10 @@ def main() -> int:
     t = _TARGETS[args.target]
 
     root = _git_root()
+    here = pathlib.Path(__file__).resolve().parent
     cc_name = t["cc"]
     deployed = root / "bin" / cc_name
     cc_bin = str(deployed) if deployed.exists() else cc_name
-    here = pathlib.Path(__file__).resolve().parent
     build = root / "build"
     build.mkdir(parents=True, exist_ok=True)
     elf = build / f"probe_{args.target}.elf"
@@ -71,8 +72,8 @@ def main() -> int:
     word = ["-DCOBS_SWAR_WORD_BITS=" + str(args.word_bits)] if args.word_bits else []
     if args.expect_fail:
         word.append("-DCOBS_PROBE_FAULT=1")
-    cc = [cc_bin, *t["cflags"], "-Os", "-std=c99", "-Wall", "-Wextra", "-Werror",
-          "-Wconversion", f"-I{root}", "-o", str(elf),
+    cc = [cc_bin, *t["cflags"], *t["ldflags"], f"-L{here}", "-Os", "-std=c99", "-Wall",
+          "-Wextra", "-Werror", "-Wconversion", f"-I{root}", "-o", str(elf),
           str(here / "probe.c"), str(here / t["io"]), str(root / "cobs.c"),
           *word]
     # The scalar half of the differential.
@@ -92,16 +93,31 @@ def main() -> int:
     if shutil.which(qemu[0]) is None:
         print(f"FAILED: {qemu[0]} not on PATH", file=sys.stderr)
         return 1
+
+    # A guest that cannot halt qemu spins after printing, so read incrementally and
+    # stop at DONE rather than waiting out the timeout.
+    proc = subprocess.Popen(qemu, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    deadline = time.monotonic() + _TIMEOUT_SEC
+    chunks = []
     try:
-        done = subprocess.run(qemu, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              timeout=_TIMEOUT_SEC, check=False)
-        out = done.stdout.decode(errors="replace")
-    except subprocess.TimeoutExpired as expired:
-        out = (expired.stdout or b"").decode(errors="replace")
-        if not t["spins"]:
-            print(out, end="", flush=True)
-            print(f"FAILED: {args.target} timed out", file=sys.stderr)
-            return 1
+        assert proc.stdout is not None
+        os.set_blocking(proc.stdout.fileno(), False)
+        while time.monotonic() < deadline:
+            got = proc.stdout.read()
+            if got:
+                chunks.append(got)
+                if b"DONE" in b"".join(chunks):
+                    break
+            elif proc.poll() is not None:
+                break
+            else:
+                time.sleep(0.05)
+        else:
+            print(f"(timed out after {_TIMEOUT_SEC}s)", flush=True)
+    finally:
+        proc.kill()
+        proc.wait()
+    out = b"".join(chunks).decode(errors="replace")
 
     print(out, end="", flush=True)
     if "DONE" not in out:
