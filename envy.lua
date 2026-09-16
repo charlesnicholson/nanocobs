@@ -25,12 +25,12 @@ PACKAGES = {
   { spec = "envy.python@r1", bundle = "envy",
     options = { version = "3.13.14", release = "20260623",
                 provide_python = true, provide_python3 = true } },
+
+  -- Microchip publishes avr8-gnu-toolchain for linux x86_64 only, so the 16-bit
+  -- probe is a linux-only target rather than a differently-built one elsewhere.
+  { spec = "local.avrgcc@r0",
+    source = "envy/local.avrgcc.lua",
+    platforms = { "linux" },
+    options = { version = "3.7.0.1796" } },
 }
 
--- Microchip publishes avr8-gnu-toolchain for linux x86_64 only, so the 16-bit probe
--- is a linux-only target; elsewhere it is simply absent rather than different.
-if envy.PLATFORM == "linux" then
-  table.insert(PACKAGES, { spec = "local.avrgcc@r0",
-                           source = "envy/local.avrgcc.lua",
-                           options = { version = "3.7.0.1796" } })
-end
