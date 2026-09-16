@@ -44,8 +44,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: arm-none-eabi-gcc -mcpu=cortex-m4 -Os -Werror -Wall -Wextra -Wconversion -c cobs.c
+      - name: Cache the envy toolchain
+        uses: actions/cache@v4
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      - name: Build (default and byte-loop configurations)
+        run: make arm
+      - name: Code size
+        run: make size
+      - name: Size budget
+        run: make size-check
+      - name: No standard library calls
+        run: make size-nolibc
 
   linux:
     name: linux (${{ matrix.compiler.name }}, ${{ matrix.architecture }})
@@ -101,8 +112,86 @@ jobs:
           call "%VSINSTALL%\VC\Auxiliary\Build\vcvars${{ matrix.architecture }}.bat" || exit /b 1
           call make-win.bat
 
+  swar-configs:
+    name: swar (${{ matrix.word_bits }}-bit words)
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        word_bits: [8, 16, 32, 64]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: COBS_SWAR_WORD_BITS=${{ matrix.word_bits }} make -j
+
+  exhaustive:
+    name: exhaustive tests (asan)
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run the slow test tier
+        run: CC=clang CXX=clang++ COBS_SANITIZER=address make test-all -j
+
+  qemu:
+    name: qemu (${{ matrix.probe.name }})
+    runs-on: ubuntu-latest
+
+    permissions:
+      packages: read
+
+    container:
+      image: ghcr.io/charlesnicholson/docker-image:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        probe:
+          - { name: "cortex-m3, 32-bit", args: "--target cm3" }
+          - { name: "avr, 16-bit words", args: "--target avr --word-bits 16" }
+          - { name: "avr, byte loop", args: "--target avr" }
+          - { name: "fault injection", args: "--target cm3 --expect-fail" }
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache the envy toolchain
+        uses: actions/cache@v4
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      - name: qemu
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            --no-install-recommends qemu-system-arm qemu-system-misc
+      - name: Differential probe
+        run: ./bin/python3 tests/qemu/run.py ${{ matrix.probe.args }}
+
   all-checks-pass:
-    needs: [sanitizers, linux, macos, win, arm-cm4]
+    needs: [sanitizers, linux, macos, win, arm-cm4, swar-configs, exhaustive, qemu]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done

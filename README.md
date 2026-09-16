@@ -16,31 +16,139 @@ You probably only need `nanocobs` for things like inter-chip communications prot
 
 ### Why another COBS?
 
-There are a few out there, but I haven't seen any that optionally encode in-place. This can be handy if you're memory-constrained and would enjoy CPU + RAM optimizations that come from using small frames. Also, the cost of in-place decoding is only as expensive as the number of zeroes in your payload; exploiting that if you're designing your own protocols can make decoding very fast.
+There are a few out there, but I haven't seen any that optionally encode in-place. This can be handy if you're memory-constrained and would enjoy CPU + RAM optimizations that come from using small frames. In-place decoding walks the chain of code bytes and only has to write where your payload had zeroes, so keeping zeroes sparse when you design your own protocols makes decoding very fast.
 
 None of the other COBS implementations I saw supported incremental encoding and decoding. It's often the case in communication stacks that a layer above the link provides a tightly-sized payload buffer, and the link has to encode both a header _and_ this payload into a single frame. That requires an extra buffer for assembling which then immediately gets encoded into yet another buffer. With incremental encoding, data can be streamed through small buffers without ever needing to allocate the full encoded frame.
 
 Finally, I didn't see as many unit tests as I'd have liked in the other libraries, especially around invalid payload handling. Framing protocols make for lovely attack surfaces, and malicious COBS frames can easily instruct decoders to jump outside of the frame itself.
 
+## Speed
+
+Both encoding and decoding run a register-wide fast lane: at the head of every
+COBS block they copy whole machine words at a time, checking each word for a zero
+byte with the branchless
+
+```
+(v - 0x0101..01) & ~v & 0x8080..80
+```
+
+test, and drop into the ordinary byte loop as soon as a zero comes into view.
+
+**The metric that matters is the mean run length between zero bytes, not the
+payload size.** Runs longer than a machine word win, up to about 9x. Runs
+shorter than a word lose 5-30%, because every block still pays for one word probe
+that can never succeed. The crossover is around 8 bytes. Measured on an Apple M3
+Pro at `-O2` with 8-byte words, one-shot APIs, 64 KiB payloads:
+
+| payload | mean run | `cobs_encode` | `cobs_decode` |
+|---|---|---|---|
+| no zeroes at all | 65536 | 9.3x | 8.9x |
+| printable ASCII | 65536 | 9.3x | 8.9x |
+| long runs, occasional zero bursts | 655 | 7.7x | 8.1x |
+| 0.4% zeroes (one per nominal block) | 266 | 8.3x | 8.1x |
+| one zero every 254 bytes | 254 | 9.4x | 9.2x |
+| 1% zeroes | 98 | 7.2x | 6.6x |
+| 5% zeroes | 21 | 2.4x | 2.5x |
+| one zero every 17 bytes | 17 | 3.8x | 3.9x |
+| one zero every 9 bytes | 9 | 2.9x | 2.4x |
+| 25% zeroes | 4 | 0.83x | 0.86x |
+| 50% zeroes | 2 | 0.95x | 0.82x |
+| all zeroes | 1 | 0.71x | 0.78x |
+
+The incremental APIs win everywhere, from ~1.9x encoding / ~3.0x decoding at a
+16-byte chunk size up to ~5.5x / ~8x once chunks reach 256 bytes.
+`cobs_encode_tinyframe` and `cobs_decode_tinyframe` run 1.7x-5x on realistic
+frames and, like the rest, lose on all-zero payloads. Across the whole benchmark
+-- every API, shape, length, and alignment -- the geometric mean is 3.0x and the
+worst case is 0.61x.
+
+On a Cortex-M4 at `-Os` the fast lane compiles to ten instructions per four
+bytes, with both SWAR constants encoded as Thumb-2 modified immediates -- no
+literal pool, no spilled registers:
+
+```
+ldr.w  r6, [r0, r8]
+sub.w  r9, r6, #0x01010101
+bic.w  r9, r9, r6
+tst.w  r9, #0x80808080
+bne.n  <off-ramp>
+add.w  r8, r8, #4
+str    r6, [r2, r4]
+sub.w  r6, r7, r8
+cmp    r6, #3
+add.w  r4, r4, #4
+add.w  r5, r5, #4
+bhi.n  <top>
+```
+
+By instruction count that is roughly 3.5 cycles per byte against 13-14 for the
+byte loop. Those two numbers are read off the disassembly, not measured on
+hardware -- the ratios in the table above are all from the host benchmark.
+
+COBS shifts the destination one byte further from the source at every block
+boundary, so relative alignment drifts as encoding proceeds and there is no
+aligned fast path to be had: the loads and stores are unaligned throughout.
+Sweeping all 64 source/destination offset pairs at 64 KiB puts the spread at
+8.1%, against 5.6% for the byte loop -- no alignment cliff.
+
+Run `make bench` to reproduce the host numbers on your own machine. It builds both
+implementations into one binary and times them A/B interleaved, so the comparison
+is immune to thermal drift.
+
+### Turning it off
+
+`COBS_SWAR_WORD_BITS` is a compile-time flag on `cobs.c`:
+
+```
+cc -DCOBS_SWAR_WORD_BITS=8 -c cobs.c     # byte loop only
+```
+
+The default is the width of `uintptr_t`, floored at 32 bits, and it is disabled
+automatically on any target without single-instruction unaligned access
+(Cortex-M0/M0+/M23 and anything narrower than 32 bits, which is every 8- and
+16-bit part). On those targets `cobs.o` is what it always was; there is nothing
+to opt out of. `-DCOBS_SWAR_WORD_BITS=16` opts a 16-bit machine in, if you
+measure a win there.
+
+Encoding and decoding are byte-for-byte identical in every configuration. The
+test suite proves it: it links a second copy of `cobs.c` built with
+`-DCOBS_SWAR_WORD_BITS=8` and diffs the two implementations over an exhaustive
+corpus, every source and destination alignment, and every chunk boundary.
+
 ## Metrics
 
 It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or_ `cobs_[en|de]code[_inc*]`, but not all of them.
-```
-❯ arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -c cobs.c
-❯ arm-none-eabi-nm --print-size --size-sort cobs.o
 
-000002c4 0000000e T cobs_decode_inc_begin  (14 bytes)
-00000128 0000001c T cobs_encode_inc_begin  (28 bytes)
-00000000 00000022 t flush_block            (34 bytes)
-00000396 00000044 T cobs_decode            (68 bytes)
-0000006a 00000048 T cobs_decode_tinyframe  (72 bytes)
-00000022 00000048 T cobs_encode_tinyframe  (72 bytes)
-000000b2 00000076 T cobs_encode            (118 bytes)
-00000212 000000b2 T cobs_encode_inc_end    (178 bytes)
-000002d2 000000c4 T cobs_decode_inc        (196 bytes)
-00000144 000000ce T cobs_encode_inc        (206 bytes)
-Total 3da (986 bytes)
 ```
+❯ make size
+
+> ./bin/arm-none-eabi-gcc -mthumb -mcpu=cortex-m4 -Os -std=c99 -Wall -Wextra -Werror -Wconversion -c cobs.c
+> ./bin/arm-none-eabi-nm --print-size --size-sort cobs.o
+
+000003ec 0000000e T cobs_decode_inc_begin  (14 bytes)
+000001fe 0000001c T cobs_encode_inc_begin  (28 bytes)
+000004fa 00000044 T cobs_decode            (68 bytes)
+00000000 00000056 t flush_block            (86 bytes)
+000000c6 0000006e T cobs_decode_tinyframe  (110 bytes)
+00000056 00000070 T cobs_encode_tinyframe  (112 bytes)
+0000032e 000000be T cobs_encode_inc_end    (190 bytes)
+00000134 000000ca T cobs_encode            (202 bytes)
+000003fa 00000100 T cobs_decode_inc        (256 bytes)
+0000021a 00000114 T cobs_encode_inc        (276 bytes)
+Total 53e (1342 bytes)
+
+byte loop only (-DCOBS_SWAR_WORD_BITS=8): 986 bytes
+```
+
+The word-at-a-time fast lanes cost 356 bytes of flash on Cortex-M4, and buy about
+4x on payloads whose runs are longer than a machine word. `make size-check`
+asserts a budget with headroom, and `make size-nolibc` fails the build if
+`cobs.o` ever acquires an undefined symbol, which is what keeps the
+no-standard-library promise above honest rather than aspirational.
+
+The cross compiler is pinned in `envy.lua` and fetched on demand by the `bin/`
+wrappers, so the numbers above are reproducible without installing anything.
+`make` and `make bench` never touch it. Set `ARM_CC` and `ARM_NM` to use your own.
 
 ## Usage
 
@@ -206,6 +314,6 @@ if (result == COBS_RET_SUCCESS) {
 
 ## Developing
 
-`nanocobs` uses [doctest](https://github.com/onqtam/doctest) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
+`nanocobs` uses [doctest](https://github.com/onqtam/doctest) for unit and functional testing; its unified mega-header is checked in to the `tests` directory. To build and run all tests on macOS or Linux, run `make -j` from a terminal. `make test-all` adds an exhaustive tier that is too slow for the normal edit loop, `make bench` builds and runs the throughput benchmark, and `make size` reports Cortex-M4 code size. To build + run all tests on Windows, run the `vsvarsXX.bat` of your choice to set up the VS environment, then run `make-win.bat` (if you want to make that part better, pull requests are very welcome).
 
 The presubmit workflow compiles `nanocobs` on macOS, Linux (gcc) 32/64, Windows (msvc) 32/64. It also builds weekly against a fresh docker image so I know when newer stricter compilers break it.
