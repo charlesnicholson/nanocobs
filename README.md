@@ -24,81 +24,19 @@ Finally, I didn't see as many unit tests as I'd have liked in the other librarie
 
 ## Speed
 
-Encoding and decoding each run two register-wide fast lanes at the head of every
-COBS block. One copies a run of data a machine word at a time, testing each word
-for a zero byte with the branchless
+Encoding and decoding process a machine word at a time wherever a COBS block
+holds a long run of bytes, of either all-zero or all-nonzero; anything shorter
+falls back to a byte loop.
 
-```
-(v - 0x0101..01) & ~v & 0x8080..80
-```
+Measured on an Apple M3 Pro at `-O2` with 64 KiB payloads, the one-shot APIs run
+6x-14x faster than the byte loop on payloads with runs comfortably longer than a
+word (sparse zeroes, ASCII text, long zero fills), tapering to roughly break-even
+and as low as 0.7x when zeroes and data alternate every few bytes. The
+incremental APIs win everywhere: ~1.9x encoding and ~2.7x decoding at a 16-byte
+chunk size, rising to ~5.5x / ~7.6x at 256 bytes. `cobs_encode_tinyframe` and
+`cobs_decode_tinyframe` run 1.4x-5x on realistic frames.
 
-The other handles the mirror case: a run of zeroes is a run of empty blocks, so
-the encoder stores whole words of `0x01` code bytes and the decoder recognises
-them and stores whole words of zeroes. Anything else drops to the byte loop.
-
-**What matters is how long the runs are, of either kind.** Runs comfortably
-longer than a machine word win; runs at or under one pay for a probe that cannot
-fire. Measured on an Apple M3 Pro at `-O2` with 8-byte words, one-shot APIs,
-64 KiB payloads:
-
-| payload | mean run | `cobs_encode` | `cobs_decode` |
-|---|---|---|---|
-| all zeroes | 65536 | 10.2x | 53.9x |
-| no zeroes at all | 65536 | 8.9x | 9.0x |
-| printable ASCII | 65536 | 9.0x | 8.7x |
-| one zero every 254 bytes | 127 | 9.0x | 8.8x |
-| sparse: long zero runs, short data | 78 | 6.2x | 14.2x |
-| long data runs, short zero bursts | 1282 | 7.5x | 8.0x |
-| 0.4% zeroes (one per nominal block) | 127 | 7.5x | 7.9x |
-| 1% zeroes | 50 | 6.9x | 6.5x |
-| one zero every 17 bytes | 8.5 | 3.4x | 3.1x |
-| 32-byte alternating runs | 32 | 2.1x | 3.0x |
-| 5% zeroes | 10 | 2.4x | 2.4x |
-| one zero every 9 bytes | 4.5 | 2.4x | 2.0x |
-| 50% zeroes | 1 | 0.88x | 0.89x |
-| 25% zeroes | 2 | 0.79x | 0.88x |
-| 8-byte alternating runs | 8 | 0.71x | 0.83x |
-
-The losing rows are all cases where every word holds both a zero and a nonzero,
-so neither lane can engage. 8-byte alternating runs lose even though the runs are
-a full word long, because the byte that closes a block leaves only seven for the
-next probe.
-
-The incremental APIs win everywhere: ~1.9x encoding and ~2.7x decoding at a
-16-byte chunk size, rising to ~5.5x / ~7.6x once chunks reach 256 bytes.
-`cobs_encode_tinyframe` and `cobs_decode_tinyframe` run 1.4x-5x on realistic
-frames and lose a little on all-zero ones.
-
-On a Cortex-M4 at `-Os` the fast lane compiles to twelve instructions per four
-bytes and a single taken branch, with both SWAR constants encoded as Thumb-2
-modified immediates -- no literal pool, no spilled registers:
-
-```
-ldr.w  r8, [r0, r6]
-sub.w  r9, r8, #0x01010101
-bic.w  r9, r9, r8
-tst.w  r9, #0x80808080
-bne.n  <off-ramp>
-str.w  r8, [r2, r4]
-adds   r7, #4
-adds   r6, #4
-sub.w  r8, r5, r6
-cmp.w  r8, #3
-add.w  r4, r4, #4
-bhi.n  <top>
-```
-
-By instruction count that is roughly 3.5 cycles per byte against 13-14 for the
-byte loop. Those two are read off the disassembly, not measured on hardware --
-every ratio above is from the host benchmark.
-
-COBS shifts the destination one byte further from the source at every block
-boundary, so relative alignment drifts as encoding proceeds and there is no
-aligned fast path to be had: the loads and stores are unaligned throughout.
-Sweeping all 64 source/destination offset pairs at 64 KiB puts the spread at
-8.1%, against 5.6% for the byte loop -- no alignment cliff.
-
-Run `make bench` to reproduce the host numbers on your own machine. It builds both
+Run `make bench` to reproduce these on your own machine. It builds both
 implementations into one binary and times them A/B interleaved, so the comparison
 is immune to thermal drift.
 
@@ -147,9 +85,9 @@ Total 5a0 (1440 bytes)
 byte loop only (-DCOBS_SWAR_WORD_BITS=8): 986 bytes
 ```
 
-The six fast lanes cost 454 bytes of flash on Cortex-M4. On Cortex-M0 and
-anything narrower they cost nothing: the object is bit-identical to the byte loop. `make size-check`
-asserts a budget with headroom, and `make size-nolibc` fails the build if
+The word-at-a-time fast lanes cost 454 bytes of flash on Cortex-M4. On Cortex-M0
+and anything narrower they cost nothing: the object is bit-identical to the byte
+loop. `make size-check` asserts a budget with headroom, and `make size-nolibc` fails the build if
 `cobs.o` ever acquires an undefined symbol, which is what keeps the
 no-standard-library promise above honest rather than aspirational.
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Unlicense OR 0BSD
 
-// nanocobs v0.2.0, Charles Nicholson (charles.nicholson@gmail.com)
+// nanocobs v0.3.0, Charles Nicholson (charles.nicholson@gmail.com)
 #pragma once
 
 #include <stdbool.h>
