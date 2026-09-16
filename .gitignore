@@ -57,3 +57,5 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+.envy-cache-local
+.envy-cache-shared

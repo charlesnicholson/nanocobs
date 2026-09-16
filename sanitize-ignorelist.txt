@@ -4,3 +4,6 @@ src:*/ostream
 src:*/ostream.h
 src:*/iomanip
 src:*/basic_string.h
+# doctest's own -tse/-tc argument parser reads uninitialized memory. Scoped to
+# that function so the assertion machinery stays instrumented.
+fun:*parseCommaSepArgs*

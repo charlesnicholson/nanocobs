@@ -57,6 +57,17 @@ TEST_CASE("cobs_decode_inc bad args") {
     REQUIRE(cobs_decode_inc(&ctx, &args, &enc_len, &dec_len, &done) ==
             COBS_RET_ERR_BAD_ARG);
   }
+
+  SUBCASE("state out of range") {
+    // A ctx that never reached cobs_decode_inc_begin must be rejected, not run:
+    // the state switch has no default arm, so an unknown state used to fall into
+    // a self-loop and hang.
+    for (unsigned bad : { 3u, 4u, 0x7Fu, 0xFFu }) {
+      ctx.state = static_cast<cobs_decode_inc_state_t>(bad);
+      REQUIRE(cobs_decode_inc(&ctx, &args, &enc_len, &dec_len, &done) ==
+              COBS_RET_ERR_BAD_ARG);
+    }
+  }
 }
 
 namespace {
