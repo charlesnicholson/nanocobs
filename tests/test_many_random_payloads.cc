@@ -43,11 +43,12 @@ TEST_CASE("many random payloads") {
       REQUIRE(none_of(enc.data(), enc.data() + enc_len - 1, [](byte_t b) { return !b; }));
       REQUIRE(enc[enc_len - 1] == 0);
 
-      size_t dec_len{ 0u };
-      REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len) ==
-              COBS_RET_SUCCESS);
+      size_t dec_len{ 0u }, consumed{ 0u };
+      REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len,
+                          &consumed) == COBS_RET_SUCCESS);
 
       REQUIRE(dec_len == LEN);
+      REQUIRE(consumed == enc_len);
       REQUIRE(src == dec);
     }
   } };
@@ -79,10 +80,11 @@ TEST_CASE("random payloads near code-block boundaries") {
             COBS_RET_SUCCESS);
 
     byte_vec_t dec(len);
-    size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len) ==
-            COBS_RET_SUCCESS);
+    size_t dec_len{ 0u }, consumed{ 0u };
+    REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len,
+                        &consumed) == COBS_RET_SUCCESS);
     REQUIRE(dec_len == len);
+    REQUIRE(consumed == enc_len);
     REQUIRE(src == dec);
   }
 }
@@ -166,11 +168,11 @@ TEST_CASE("random incremental encode vs single-shot") {
 
     // Verify round-trip decode
     byte_vec_t dec(len);
-    size_t dec_len{ 0u };
-    REQUIRE(
-        cobs_decode(enc_inc.data(), enc_inc.size(), dec.data(), dec.size(), &dec_len) ==
-        COBS_RET_SUCCESS);
+    size_t dec_len{ 0u }, consumed{ 0u };
+    REQUIRE(cobs_decode(enc_inc.data(), enc_inc.size(), dec.data(), dec.size(),
+                        &dec_len, &consumed) == COBS_RET_SUCCESS);
     REQUIRE(dec_len == len);
+    REQUIRE(consumed == enc_inc.size());
     REQUIRE(dec == src);
   }
 }

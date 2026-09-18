@@ -101,8 +101,10 @@ std::string diff_decode(byte_t const* enc,
   b.fill(kPoison);
 
   size_t la = kSentinel, lb = kSentinel;
-  cobs_ret_t const ra = cobs_ref_decode(src.data(), enc_len, a.data(), dec_max, &la);
-  cobs_ret_t const rb = cobs_decode(src.data(), enc_len, b.data(), dec_max, &lb);
+  size_t ca = kSentinel, cb = kSentinel;
+  cobs_ret_t const ra =
+      cobs_ref_decode(src.data(), enc_len, a.data(), dec_max, &la, &ca);
+  cobs_ret_t const rb = cobs_decode(src.data(), enc_len, b.data(), dec_max, &lb, &cb);
 
   char msg[160];
   if (ra != rb) {
@@ -111,6 +113,32 @@ std::string diff_decode(byte_t const* enc,
   }
   if (la != lb) {
     std::snprintf(msg, sizeof(msg), "out_len mismatch: ref=%zu swar=%zu", la, lb);
+    return msg;
+  }
+  // The SWAR lane advances src_idx in word strides; this is what it could get wrong.
+  if (ca != cb) {
+    std::snprintf(msg, sizeof(msg), "consumed mismatch: ref=%zu swar=%zu", ca, cb);
+    return msg;
+  }
+  // A frame holds no zero but its terminator, so the first zero is where it ends --
+  // including a mutated frame, where consumed is legitimately below enc_len.
+  if (ra == COBS_RET_SUCCESS) {
+    size_t first_zero = 0;
+    while ((first_zero < enc_len) && enc[first_zero]) {
+      ++first_zero;
+    }
+    if (cb != first_zero + 1u) {
+      std::snprintf(msg,
+                    sizeof(msg),
+                    "consumed=%zu but the frame ends at %zu (enc_len=%zu)",
+                    cb,
+                    first_zero,
+                    enc_len);
+      return msg;
+    }
+  }
+  if ((ra != COBS_RET_SUCCESS) && (cb != kSentinel)) {
+    std::snprintf(msg, sizeof(msg), "consumed written on failure: %zu", cb);
     return msg;
   }
   if (dec_max && (std::memcmp(a.data(), b.data(), dec_max) != 0)) {

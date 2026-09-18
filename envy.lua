@@ -26,6 +26,12 @@ PACKAGES = {
     options = { version = "3.13.14", release = "20260623",
                 provide_python = true, provide_python3 = true } },
 
+  -- wasm32 clang for the npm package's wasm build. `make` and `make bench` never
+  -- touch it; only the js-* targets do.
+  { spec = "local.wasisdk@r0",
+    source = "envy/local.wasisdk.lua",
+    options = { version = "34.0" } },
+
   -- Microchip publishes avr8-gnu-toolchain for linux x86_64 only, so the 16-bit
   -- probe is a linux-only target rather than a differently-built one elsewhere.
   { spec = "local.avrgcc@r0",

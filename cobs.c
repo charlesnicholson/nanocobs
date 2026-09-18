@@ -15,6 +15,14 @@
 #endif
 #endif
 
+// wasm32 has 32-bit pointers but native i64 and unaligned loads, so the rule below
+// would pick 32 where 64 is free.
+#if !defined(COBS_SWAR_WORD_BITS)
+#if defined(__wasm__) && defined(UINT64_MAX)
+#define COBS_SWAR_WORD_BITS 64
+#endif
+#endif
+
 // uintptr_t, not size_t: size_t is 16 bits on an 8-bit AVR. Nested #if defined()
 // because "defined(X) && (X >= Y)" trips MSVC C4668 and clang -Wundef.
 #if !defined(COBS_SWAR_WORD_BITS)
@@ -502,7 +510,8 @@ cobs_ret_t cobs_decode(void const* enc,
                        size_t enc_len,
                        void* out_dec,
                        size_t dec_max,
-                       size_t* out_dec_len) {
+                       size_t* out_dec_len,
+                       size_t* out_enc_consumed) {
   if (!enc || !out_dec || !out_dec_len) {
     return COBS_RET_ERR_BAD_ARG;
   }
@@ -528,7 +537,13 @@ cobs_ret_t cobs_decode(void const* enc,
                            &decode_complete)) != COBS_RET_SUCCESS) {
     return r;
   }
-  return decode_complete ? COBS_RET_SUCCESS : COBS_RET_ERR_EXHAUSTED;
+  if (!decode_complete) {
+    return COBS_RET_ERR_EXHAUSTED;
+  }
+  if (out_enc_consumed) {
+    *out_enc_consumed = src_len + 1u;  // src_len stops on the delimiter, not past it
+  }
+  return COBS_RET_SUCCESS;
 }
 
 cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t* ctx) {

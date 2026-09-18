@@ -268,9 +268,10 @@ TEST_CASE("SWAR boundaries: round trip at every length 0..600 across every shape
         REQUIRE(enc[i] != 0x00);
       }
       byte_vec_t back(len + 2);
-      size_t got = 0;
-      REQUIRE(cobs_decode(enc.data(), enc.size(), back.data(), back.size(), &got) ==
-              COBS_RET_SUCCESS);
+      size_t got = 0, consumed = 0;
+      REQUIRE(cobs_decode(enc.data(), enc.size(), back.data(), back.size(), &got,
+                          &consumed) == COBS_RET_SUCCESS);
+      REQUIRE(consumed == enc.size());
       back.resize(got);
       if (back != dec) {
         FAIL("round trip len=" << len << " shape=" << cobs_test::shape_name(shapes[si]));

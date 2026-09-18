@@ -6,11 +6,14 @@
 #include <numeric>
 
 namespace {
+size_t constexpr kUnwritten{ 0xA5A5A5A5u };  // cobs_decode never produces this
+
 byte_vec_t decode(byte_vec_t const& enc) {
   byte_vec_t dec(enc.size());
-  size_t dec_len{ 0u };
-  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len) ==
-          COBS_RET_SUCCESS);
+  size_t dec_len{ 0u }, consumed{ 0u };
+  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len,
+                      &consumed) == COBS_RET_SUCCESS);
+  REQUIRE(consumed == enc.size());  // every frame here is the entire input
   dec.resize(dec_len);
   return dec;
 }
@@ -28,62 +31,71 @@ byte_vec_t encode(byte_vec_t const& dec) {
 TEST_CASE("Decoding validation") {
   unsigned char dec[32];
   size_t dec_len;
+  size_t consumed{ kUnwritten };  // subcases below assert it is set only on success
 
   SUBCASE("Null pointers") {
     byte_vec_t enc{ 0x01, 0x00 };
-    REQUIRE(cobs_decode(nullptr, enc.size(), dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(nullptr, enc.size(), dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_decode(enc.data(), enc.size(), nullptr, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), nullptr, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), nullptr) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), nullptr, &consumed) ==
             COBS_RET_ERR_BAD_ARG);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Invalid enc_len") {
     byte_vec_t enc{ 0x00 };
-    REQUIRE(cobs_decode(enc.data(), 0, dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), 0, dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_ARG);
-    REQUIRE(cobs_decode(enc.data(), 1, dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), 1, dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_ARG);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Invalid payload: code byte jumps past end") {
     byte_vec_t enc{ 3, 0 };
-    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_PAYLOAD);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Invalid payload: code byte jumps over internal zeroes") {
     byte_vec_t enc{ 5, 1, 0, 0, 1, 0 };
-    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_PAYLOAD);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Invalid payload: embedded zero in run") {
     byte_vec_t enc{ 0x04, 0x01, 0x00, 0x03, 0x00 };
-    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_BAD_PAYLOAD);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Output buffer too small") {
     byte_vec_t enc{ 0x05, 0x11, 0x22, 0x33, 0x44, 0x00 };
     unsigned char tiny[2];
-    REQUIRE(cobs_decode(enc.data(), enc.size(), tiny, sizeof(tiny), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), tiny, sizeof(tiny), &dec_len, &consumed) ==
             COBS_RET_ERR_EXHAUSTED);
+    REQUIRE(consumed == kUnwritten);
   }
 
   SUBCASE("Output buffer exactly right") {
     byte_vec_t enc{ 0x05, 0x11, 0x22, 0x33, 0x44, 0x00 };
     unsigned char exact[4];
-    REQUIRE(cobs_decode(enc.data(), enc.size(), exact, sizeof(exact), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), exact, sizeof(exact), &dec_len, &consumed) ==
             COBS_RET_SUCCESS);
     REQUIRE(dec_len == 4);
+    REQUIRE(consumed == enc.size());
   }
 
   SUBCASE("Missing trailing delimiter") {
     byte_vec_t enc{ 0x02, 0x01 };
-    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len) ==
+    REQUIRE(cobs_decode(enc.data(), enc.size(), dec, sizeof(dec), &dec_len, &consumed) ==
             COBS_RET_ERR_EXHAUSTED);
+    REQUIRE(consumed == kUnwritten);
   }
 }
 
@@ -330,9 +342,10 @@ TEST_CASE("Decode: encode/decode round-trips") {
 TEST_CASE("Decode: in-place (output buffer == input buffer)") {
   SUBCASE("Simple") {
     byte_vec_t buf{ 0x03, 0x11, 0x22, 0x02, 0x33, 0x00 };
-    size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(buf.data(), buf.size(), buf.data(), buf.size(), &dec_len) ==
-            COBS_RET_SUCCESS);
+    size_t dec_len{ 0u }, consumed{ 0u };
+    REQUIRE(cobs_decode(buf.data(), buf.size(), buf.data(), buf.size(), &dec_len,
+                        &consumed) == COBS_RET_SUCCESS);
+    REQUIRE(consumed == buf.size());
     REQUIRE(dec_len == 4);
     REQUIRE(byte_vec_t(buf.data(), buf.data() + dec_len) ==
             byte_vec_t{ 0x11, 0x22, 0x00, 0x33 });
@@ -341,9 +354,10 @@ TEST_CASE("Decode: in-place (output buffer == input buffer)") {
   SUBCASE("254 nonzero bytes") {
     byte_vec_t dec(254, 0x01);
     byte_vec_t buf = encode(dec);
-    size_t dec_len{ 0u };
-    REQUIRE(cobs_decode(buf.data(), buf.size(), buf.data(), buf.size(), &dec_len) ==
-            COBS_RET_SUCCESS);
+    size_t dec_len{ 0u }, consumed{ 0u };
+    REQUIRE(cobs_decode(buf.data(), buf.size(), buf.data(), buf.size(), &dec_len,
+                        &consumed) == COBS_RET_SUCCESS);
+    REQUIRE(consumed == buf.size());
     REQUIRE(dec_len == 254);
     REQUIRE(byte_vec_t(buf.data(), buf.data() + dec_len) == dec);
   }

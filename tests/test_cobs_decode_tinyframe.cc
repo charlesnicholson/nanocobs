@@ -344,15 +344,17 @@ TEST_CASE("Tinyframe decode: round-trip at all safe lengths") {
 namespace {
 void verify_decode_inplace(unsigned char* inplace, size_t payload_len) {
   byte_vec_t external(std::max(payload_len, size_t(1)));
-  size_t external_len{ 0u };
+  size_t external_len{ 0u }, consumed{ 0u };
   REQUIRE_MESSAGE(cobs_decode(inplace,
                               payload_len + 2,
                               external.data(),
                               external.size(),
-                              &external_len) == COBS_RET_SUCCESS,
+                              &external_len,
+                              &consumed) == COBS_RET_SUCCESS,
                   payload_len);
 
   REQUIRE(external_len == payload_len);
+  REQUIRE(consumed == payload_len + 2);  // the tinyframe span, delimiter included
   REQUIRE(cobs_decode_tinyframe(inplace, payload_len + 2) == COBS_RET_SUCCESS);
   REQUIRE(byte_vec_t(inplace + 1, inplace + external_len + 1) ==
           byte_vec_t(external.data(), external.data() + external_len));

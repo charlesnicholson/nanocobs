@@ -92,11 +92,16 @@ cobs_ret_t cobs_decode_tinyframe(void* buf, size_t len);
 
 // cobs_decode
 //
-// Decode |enc_len| encoded bytes from |enc| into |out_dec|, storing the decoded length in
-// |out_dec_len|. Returns COBS_RET_SUCCESS on successful decoding.
+// Decode a frame from the |enc_len| bytes at |enc| into |out_dec|, storing the decoded
+// length in |out_dec_len|. Returns COBS_RET_SUCCESS on successful decoding.
 //
-// If any of the input pointers are null, or if any of the lengths are invalid, the
-// function will fail with COBS_RET_ERR_BAD_ARG.
+// Decoding stops at the frame's delimiter, so |enc| may hold more than one frame.
+// |out_enc_consumed| receives the bytes the frame occupied, delimiter included, so
+// |enc| + that count is the next frame. It may be null, and is written only on
+// COBS_RET_SUCCESS.
+//
+// If |enc|, |out_dec|, or |out_dec_len| are null, or if any of the lengths are invalid,
+// the function will fail with COBS_RET_ERR_BAD_ARG.
 //
 // If |enc| starts with a 0 byte, or does not end with a 0 byte, the function will fail
 // with COBS_RET_ERR_BAD_PAYLOAD.
@@ -107,7 +112,8 @@ cobs_ret_t cobs_decode(void const* enc,
                        size_t enc_len,
                        void* out_dec,
                        size_t dec_max,
-                       size_t* out_dec_len);
+                       size_t* out_dec_len,
+                       size_t* out_enc_consumed);
 
 // cobs_encode
 //

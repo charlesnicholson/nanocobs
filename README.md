@@ -55,6 +55,11 @@ automatically on any target without single-instruction unaligned access
 to opt out of. `-DCOBS_SWAR_WORD_BITS=16` opts a 16-bit machine in, if you
 measure a win there.
 
+WebAssembly is the one place pointer width is the wrong signal, so it is special
+cased to 64. `wasm32` has 32-bit pointers, but `i64` is a native type there and
+every load may be unaligned, so the `uintptr_t` rule would decline a lane the
+target can actually run.
+
 Encoding and decoding are byte-for-byte identical in every configuration. The
 test suite proves it: it links a second copy of `cobs.c` built with
 `-DCOBS_SWAR_WORD_BITS=8` and diffs the two implementations over an exhaustive
@@ -72,7 +77,7 @@ It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or
 
 00000400 0000000e T cobs_decode_inc_begin  (14 bytes)
 00000212 0000001c T cobs_encode_inc_begin  (28 bytes)
-0000055c 00000044 T cobs_decode            (68 bytes)
+0000055c 0000004e T cobs_decode            (78 bytes)
 00000000 00000056 t flush_block            (86 bytes)
 000000c6 0000006e T cobs_decode_tinyframe  (110 bytes)
 00000056 00000070 T cobs_encode_tinyframe  (112 bytes)
@@ -80,10 +85,14 @@ It's pretty small, and you probably need either `cobs_[en|de]code_tinyframe` _or
 00000134 000000de T cobs_encode            (222 bytes)
 0000022e 00000114 T cobs_encode_inc        (276 bytes)
 0000040e 0000014e T cobs_decode_inc        (334 bytes)
-Total 5a0 (1440 bytes)
+Total 5aa (1450 bytes)
 
-byte loop only (-DCOBS_SWAR_WORD_BITS=8): 986 bytes
+byte loop only (-DCOBS_SWAR_WORD_BITS=8): 996 bytes
 ```
+
+`cobs_decode`'s optional `out_enc_consumed` out-param costs 10 of those bytes;
+passing null for it is free at the call site, but the store and its null check
+are not.
 
 The word-at-a-time fast lanes cost 454 bytes of flash on Cortex-M4. On Cortex-M0
 and anything narrower they cost nothing: the object is bit-identical to the byte
@@ -94,6 +103,41 @@ no-standard-library promise above honest rather than aspirational.
 The cross compiler is pinned in `envy.lua` and fetched on demand by the `bin/`
 wrappers, so the numbers above are reproducible without installing anything.
 `make` and `make bench` never touch it. Set `ARM_CC` and `ARM_NM` to use your own.
+
+## JavaScript
+
+The same implementation is published to npm as [`nanocobs`](https://www.npmjs.com/package/nanocobs),
+compiled to WebAssembly. It wraps the one-shot `cobs_encode` and `cobs_decode` only.
+
+```sh
+npm install nanocobs
+```
+
+```js
+import { encode, decode, decodeFirst } from 'nanocobs';
+
+const frame = encode(payload);   // includes the trailing 0x00 delimiter
+const back = decode(frame);      // one frame; rejects an interior delimiter
+```
+
+`decodeFirst` surfaces `cobs_decode`'s `out_enc_consumed`, so walking a buffer of
+back-to-back frames needs no delimiter scanning on either side of the boundary:
+
+```js
+let i = 0;
+while (i < buf.length) {
+  const { payload, consumed } = decodeFirst(buf.subarray(i));
+  handle(payload);
+  i += consumed;
+}
+```
+
+The wasm is ~2 KB with zero imports, inlined as base64 so there is no file to load and no
+bundler configuration. Nothing generated is checked in: `make js-wasm` compiles `cobs.c`
+and `js/shim.c`, `make js-test` assembles and tests the package under `build/js`, and the
+release builds it from source. `js/tools/wasm_inspect.py` asserts on the artifact -- zero
+imports, the exact export set, no data or start section -- which is the wasm counterpart to
+`make size-nolibc`.
 
 ## Usage
 
@@ -129,7 +173,9 @@ get_encoded_data_from_somewhere(encoded, &encoded_len);
 
 unsigned char decoded[128];
 unsigned decoded_len;
-cobs_ret_t const result = cobs_decode(encoded, encoded_len, decoded, sizeof(decoded), &decoded_len);
+size_t consumed;  // or NULL if you only ever hand it one frame
+cobs_ret_t const result = cobs_decode(
+  encoded, encoded_len, decoded, sizeof(decoded), &decoded_len, &consumed);
 
 if (result == COBS_RET_SUCCESS) {
   // decoding succeeded, 'decoded' and 'decoded_len' hold details.
@@ -270,9 +316,16 @@ everything passes does the release job publish `nanocobs-<tag>.zip`, holding jus
 and `cobs.h`. GitHub attaches its own source snapshots too; those are the whole repository,
 tests included.
 
+The same tag also publishes the npm package: to npmjs.com as `nanocobs`, and to GitHub
+Packages as `@charlesnicholson/nanocobs`, since that registry only accepts scoped names. A
+prerelease tag (`v1.2.3-rc.1`) publishes under the `next` dist-tag so it cannot become
+`latest`. Both publishes are skipped unless an `NPM_TOKEN` secret is set, so a tag ships
+the C zip either way.
+
 The version lives in exactly one place, and it isn't the repository: `cobs.h` carries a
-`@COBS_VERSION@` placeholder that the release stamps with the tag, so nothing checked in
-can disagree with what shipped. `release.py --check` guards the placeholder in presubmit.
+`@COBS_VERSION@` placeholder and `js/package.json` a `0.0.0` one, both stamped by the
+release, so nothing checked in can disagree with what shipped. `release.py --check` guards
+both in presubmit.
 To see exactly what a tag would ship, run it yourself:
 
 ```

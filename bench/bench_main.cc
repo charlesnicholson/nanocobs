@@ -353,17 +353,18 @@ void bench_decode(config const& cfg, shape sh, size_t n, size_t src_ofs, size_t 
   std::memcpy(src.at(src_ofs), enc.data(), enc_len);
 
   size_t la = 0, lb = 0;
-  cobs_ref_decode(src.at(src_ofs), enc_len, a.at(dst_ofs), n + 2, &la);
-  cobs_decode(src.at(src_ofs), enc_len, b.at(dst_ofs), n + 2, &lb);
+  // Null on purpose: measure what a single-frame caller pays, same shape for both.
+  cobs_ref_decode(src.at(src_ofs), enc_len, a.at(dst_ofs), n + 2, &la, nullptr);
+  cobs_decode(src.at(src_ofs), enc_len, b.at(dst_ofs), n + 2, &lb, nullptr);
 
   auto ref = [&] {
     size_t out = 0;
-    sink(cobs_ref_decode(src.at(src_ofs), enc_len, a.at(dst_ofs), n + 2, &out));
+    sink(cobs_ref_decode(src.at(src_ofs), enc_len, a.at(dst_ofs), n + 2, &out, nullptr));
     sink(out);
   };
   auto swar = [&] {
     size_t out = 0;
-    sink(cobs_decode(src.at(src_ofs), enc_len, b.at(dst_ofs), n + 2, &out));
+    sink(cobs_decode(src.at(src_ofs), enc_len, b.at(dst_ofs), n + 2, &out, nullptr));
     sink(out);
   };
   measure(cfg,
