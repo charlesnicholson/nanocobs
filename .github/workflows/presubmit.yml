@@ -258,10 +258,6 @@ jobs:
       packages: write      # GitHub Packages npm registry
       id-token: write      # OIDC, for npm provenance
 
-    # Job-level so the steps below can test it; `if` cannot read secrets directly.
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
     steps:
       - uses: actions/checkout@v7
         with:
@@ -269,8 +265,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'          # ships an npm new enough for trusted publishing
-          registry-url: 'https://registry.npmjs.org'
+          node-version: '24'  # ships an npm new enough for trusted publishing
 
       - name: Cache the envy toolchain
         uses: actions/cache@v6
@@ -305,34 +300,50 @@ jobs:
         working-directory: build/js
         run: npm pack --pack-destination ..
 
-      # Skipped until NPM_TOKEN exists, so tagging ships the C zip either way.
-      - name: Publish to npm
-        if: ${{ env.NPM_TOKEN != '' }}
-        working-directory: build/js
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
-        run: npm publish --provenance --access public --tag "${{ steps.npm.outputs.dist_tag }}"
-
-      # GitHub Packages only accepts @owner/name, so republish the same build under
-      # a scoped name. npm keeps the unscoped `nanocobs`.
-      - name: Publish to GitHub Packages
-        if: ${{ env.NPM_TOKEN != '' }}
-        working-directory: build/js
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python3 ../../release.py --stamp-npm . --tag "${GITHUB_REF_NAME}" \
-            --npm-name "@${GITHUB_REPOSITORY_OWNER}/nanocobs" >/dev/null
-          npm publish --registry=https://npm.pkg.github.com \
-            --tag "${{ steps.npm.outputs.dist_tag }}"
-
+      # Before the registry publishes: the source zip must not be hostage to npm.
+      # Idempotent so a re-run after a failed publish still completes.
       - name: Create release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "${GITHUB_REF_NAME}" \
-            --notes-file build/release/release_notes.txt \
-            "build/release/nanocobs-${GITHUB_REF_NAME}.zip" \
-            build/nanocobs-*.tgz
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "release ${GITHUB_REF_NAME} already exists"
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "${GITHUB_REF_NAME}" \
+              --notes-file build/release/release_notes.txt \
+              "build/release/nanocobs-${GITHUB_REF_NAME}.zip" \
+              build/nanocobs-*.tgz
+          fi
+
+      # Authenticated by OIDC through npm's trusted publisher for this repo, so there
+      # is no token. Skipped if the version is already up, so a re-run is safe.
+      - name: Publish to npm
+        working-directory: build/js
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          if npm view "nanocobs@$v" version >/dev/null 2>&1; then
+            echo "nanocobs@$v already published"
+          else
+            npm publish --provenance --access public --tag "${{ steps.npm.outputs.dist_tag }}"
+          fi
+
+      # setup-node only authed registry.npmjs.org, so this host needs its own entry.
+      # npm never packs .npmrc, and the tarball was built above regardless.
+      - name: Publish to GitHub Packages
+        working-directory: build/js
+        env:
+          GH_PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 ../../release.py --stamp-npm . --tag "${GITHUB_REF_NAME}" \
+            --npm-name "@${GITHUB_REPOSITORY_OWNER}/nanocobs" >/dev/null
+          printf '//npm.pkg.github.com/:_authToken=%s\n' "$GH_PKG_TOKEN" > .npmrc
+          v=$(node -p 'require("./package.json").version')
+          n=$(node -p 'require("./package.json").name')
+          if npm view --registry=https://npm.pkg.github.com "$n@$v" version >/dev/null 2>&1; then
+            echo "$n@$v already published"
+          else
+            npm publish --registry=https://npm.pkg.github.com \
+              --tag "${{ steps.npm.outputs.dist_tag }}"
+          fi
