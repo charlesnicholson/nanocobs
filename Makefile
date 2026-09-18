@@ -181,6 +181,65 @@ size-nolibc: $(BUILD_DIR)/arm/cobs.o $(BUILD_DIR)/arm/cobs_noswar.o
 	done; \
 	echo "no undefined symbols in cobs.o"
 
+# ------------------------------------------------------------------- wasm/js --
+# The npm package. Needs a pinned wasm32 clang, which the bin/ wrappers fetch on
+# first use; `make` and `make bench` never touch it. Set WASM_CC to use your own.
+WASM_CC ?= ./bin/wasm32-clang
+PYTHON ?= ./bin/python3
+NODE ?= node
+
+include js/wasm-size-budget.mk
+
+JS_PKG := $(BUILD_DIR)/js
+
+# Golden vectors, produced by the C so the JS package is pinned to its bytes. Built
+# like the benchmark: own flags, no -Os, no sanitizers, .vo suffix to avoid collisions.
+VEC_CPPFLAGS = -MMD -MP -MF $(@:.vo=.vd) -O1 -g -DNDEBUG $(ARCHFLAGS) $(WARN) \
+			   -Itests -I.
+VEC_OBJS := $(BUILD_DIR)/js/tools/vectors_main.cc.vo $(BUILD_DIR)/cobs.c.vo
+VEC_DEPS := $(VEC_OBJS:.vo=.vd)
+
+$(BUILD_DIR)/js/tools/%.cc.vo: js/tools/%.cc Makefile
+	mkdir -p $(dir $@) && $(CXX) $(VEC_CPPFLAGS) $(CXXFLAGS) $(WARN_BENCH) -c $< -o $@
+
+$(BUILD_DIR)/cobs.c.vo: cobs.c cobs.h Makefile
+	mkdir -p $(dir $@) && $(CC) $(VEC_CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/cobs_vectors: $(VEC_OBJS) Makefile
+	$(CXX) $(ARCHFLAGS) $(VEC_OBJS) -o $@
+
+.PHONY: js-wasm js-package js-test js-pack js-vectors
+
+# Compile the wasm and the JS module that inlines it, both under build/. Nothing
+# generated is checked in. build_wasm.py then runs wasm_inspect.py on the result.
+js-wasm:
+	$(PYTHON) js/tools/build_wasm.py --cc $(WASM_CC) --size-max $(COBS_WASM_SIZE_MAX)
+
+js-vectors: $(BUILD_DIR)/cobs_vectors
+	@mkdir -p $(JS_PKG)/test
+	$(BUILD_DIR)/cobs_vectors > $(JS_PKG)/test/vectors.json
+	@echo "wrote $(JS_PKG)/test/vectors.json ($$(wc -c < $(JS_PKG)/test/vectors.json) bytes)"
+
+# The publishable tree: hand-written sources from js/, the generated wasm, and the
+# root LICENSE rather than a copy in js/.
+js-package: js-wasm js-vectors
+	@mkdir -p $(JS_PKG)/src $(JS_PKG)/test
+	@cp js/package.json $(JS_PKG)/
+	@cp js/src/index.js js/src/index.d.ts js/src/base64.js $(JS_PKG)/src/
+	@cp LICENSE $(JS_PKG)/LICENSE
+	@cp js/README.md $(JS_PKG)/README.md
+	@if [ -d js/test ]; then cp js/test/*.mjs $(JS_PKG)/test/ 2>/dev/null || true; fi
+	@echo "assembled $(JS_PKG)"
+
+# Bare --test: Node 24 treats a directory argument as a file to execute and fails.
+js-test: js-package
+	cd $(JS_PKG) && $(NODE) --test
+
+# What the release publishes, from the tested tree. Destination is build/, not the
+# package dir: a tarball inside it would end up inside the next one.
+js-pack: js-package
+	cd $(JS_PKG) && npm pack --pack-destination $(CURDIR)/$(BUILD_DIR)
+
 .PHONY: clean
 
 # Everything under build/ except the envy package cache: refetching a 135 MB
@@ -194,3 +253,4 @@ clean:
 
 -include $(DEPS)
 -include $(BENCH_DEPS)
+-include $(VEC_DEPS)

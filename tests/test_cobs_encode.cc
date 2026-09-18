@@ -28,9 +28,10 @@ void verify_frame_invariants(byte_vec_t const& enc) {
 
 byte_vec_t decode(byte_vec_t const& enc) {
   byte_vec_t dec(enc.size());
-  size_t dec_len{ 0u };
-  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len) ==
-          COBS_RET_SUCCESS);
+  size_t dec_len{ 0u }, consumed{ 0u };
+  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len,
+                      &consumed) == COBS_RET_SUCCESS);
+  REQUIRE(consumed == enc.size());  // every frame here is the entire input
   dec.resize(dec_len);
   return dec;
 }

@@ -1,13 +1,15 @@
 """Prepare the assets for a nanocobs release. Publishing them is the caller's job.
 
-The checked-in header carries a @COBS_VERSION@ placeholder where its version goes, so
-nothing in the repository can go stale. This stamps a tag into it and writes, into --out:
-a zip holding cobs.c and that stamped cobs.h, and release_notes.txt.
+cobs.h carries a @COBS_VERSION@ placeholder and js/package.json a 0.0.0 one, so nothing
+checked in can go stale. This stamps a tag into them and writes, into --out: a zip of
+cobs.c and the stamped cobs.h, plus release_notes.txt.
 
-Standard library only, so the release job needs no toolchain: plain python3 runs it.
+Standard library only. The release job needs a wasm toolchain for the npm package, not
+for this script.
 """
 
 import argparse
+import json
 import pathlib
 import re
 import subprocess
@@ -18,6 +20,13 @@ _SCRIPT_PATH = pathlib.Path(__file__).resolve().parent
 _HEADER = "cobs.h"
 _SOURCE = "cobs.c"
 _PLACEHOLDER = "@COBS_VERSION@"
+_NPM_MANIFEST = pathlib.Path("js") / "package.json"
+_NPM_PLACEHOLDER_VERSION = "0.0.0"
+
+# A tag like v1.2.3-rc.1 must not become `latest` on npm.
+_SEMVER = re.compile(
+    r"^(?P<core>[0-9]+\.[0-9]+\.[0-9]+)(?:-(?P<pre>[0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$"
+)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -34,7 +43,19 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--check",
         action="store_true",
-        help="Verify the header still holds its version placeholder, then exit",
+        help="Verify the version placeholders are still unstamped in-tree, then exit",
+    )
+    parser.add_argument(
+        "--stamp-npm",
+        type=pathlib.Path,
+        metavar="PKG_DIR",
+        help="Stamp --tag into an assembled package.json in place and print the npm "
+        "dist-tag. Point at build/js, never js/: the source manifest keeps its "
+        "placeholder.",
+    )
+    parser.add_argument(
+        "--npm-name",
+        help="Also rewrite the package name; GitHub Packages only accepts @owner/name",
     )
     return parser.parse_args()
 
@@ -54,6 +75,52 @@ def _stamped_header(tag: str) -> bytes:
         msg = f"{_HEADER} has no {_PLACEHOLDER} placeholder to stamp"
         raise ValueError(msg)
     return data.replace(placeholder, tag.encode())
+
+
+def _npm_version(tag: str) -> tuple[str, str]:
+    """Map a git tag to an npm version and the dist-tag it should publish under."""
+    version = tag[1:] if tag.startswith("v") else tag
+    match = _SEMVER.match(version)
+    if not match:
+        msg = f"tag {tag!r} does not yield an npm-legal semver version"
+        raise ValueError(msg)
+    # A prerelease publishes to `next`, so it can never land on `latest`.
+    return version, "next" if match.group("pre") else "latest"
+
+
+def _check_npm_placeholder() -> None:
+    """Raise unless the source manifest still holds its placeholder version.
+
+    The counterpart of the @COBS_VERSION@ guard: only a release assigns a version.
+    """
+    manifest = json.loads((_SCRIPT_PATH / _NPM_MANIFEST).read_text(encoding="utf-8"))
+    if manifest.get("version") != _NPM_PLACEHOLDER_VERSION:
+        msg = (
+            f"{_NPM_MANIFEST} version is {manifest.get('version')!r}, expected the "
+            f"placeholder {_NPM_PLACEHOLDER_VERSION!r}; releases stamp it, commits do not"
+        )
+        raise ValueError(msg)
+
+
+def _stamp_npm(pkg_dir: pathlib.Path, tag: str, name: str | None) -> str:
+    """Stamp the version, and optionally the name, into an assembled package.json."""
+    version, dist_tag = _npm_version(tag)
+    path = pkg_dir / "package.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    # Idempotent per version, so a second call can rename for a scoped registry
+    # without rebuilding. Any other version means a different release stamped this tree.
+    if manifest.get("version") not in (_NPM_PLACEHOLDER_VERSION, version):
+        msg = (
+            f"{path} already holds version {manifest.get('version')!r}, not the "
+            f"placeholder or {version!r}"
+        )
+        raise ValueError(msg)
+    manifest["version"] = version
+    if name:
+        manifest["name"] = name
+    path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"{path}: {manifest['name']}@{version} (dist-tag {dist_tag})", file=sys.stderr)
+    return dist_tag
 
 
 def _write_bundle(zip_path: pathlib.Path, prefix: str, header: bytes) -> None:
@@ -109,8 +176,15 @@ def _release_notes(tag: str, repo: str, zip_name: str) -> str:
                 lines.append(f"{title} https://github.com/{repo}/pull/{pr}")
         lines.append("")
 
+    version, dist_tag = _npm_version(tag)
+    npm_install = f"npm install nanocobs@{version}"
+    if dist_tag == "next":
+        npm_install += "  (prerelease: published under the `next` dist-tag)"
+
     lines += [
         f"`{zip_name}`: `{_SOURCE}` and `{_HEADER}`, the header stamped `{tag}`.",
+        "",
+        f"JavaScript/TypeScript: `{npm_install}`",
         "",
         "The autogenerated source archives below carry an unstamped header, prefer the asset above.",
     ]
@@ -123,6 +197,15 @@ def main() -> int:
 
     if args.check:
         _stamped_header("checked")  # raises if the placeholder is gone
+        _check_npm_placeholder()
+        return 0
+
+    if args.stamp_npm:
+        if not args.tag:
+            print("--stamp-npm requires --tag")
+            return 1
+        # stdout is the dist-tag alone, so the workflow can capture it directly.
+        print(_stamp_npm(args.stamp_npm, args.tag, args.npm_name))
         return 0
 
     if not args.tag or not args.repo:

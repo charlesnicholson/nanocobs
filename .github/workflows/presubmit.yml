@@ -211,9 +211,38 @@ jobs:
       - name: Differential probe
         run: ./bin/python3 tests/qemu/run.py ${{ matrix.probe.args }}
 
+  # Nothing generated is checked in, so this builds the wasm from cobs.c every run.
+  # build_wasm.py asserts on the result before the tests import it.
+  js:
+    name: js (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20.19', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Cache the envy toolchain
+        uses: actions/cache@v6
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      - name: Toolchains
+        run: ./bin/envy sync
+      - name: Test
+        run: make js-test
+      # Catches a packaging mistake on the PR rather than on tag day.
+      - name: Pack
+        run: make js-pack
+
   all-checks-pass:
     needs: [version-placeholder, sanitizers, linux, macos, win, arm-cm4, swar-configs,
-            exhaustive, qemu]
+            exhaustive, qemu, js]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done
@@ -226,11 +255,28 @@ jobs:
     permissions:
       contents: write
       pull-requests: read  # release.py reads the titles of the pull requests it links
+      packages: write      # GitHub Packages npm registry
+      id-token: write      # OIDC, for npm provenance
 
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # release.py walks back to the previous tag for the notes
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'          # ships an npm new enough for trusted publishing
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Cache the envy toolchain
+        uses: actions/cache@v6
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+
+      # The wasm is a build artifact, so the package is compiled from cobs.c here.
+      - name: Toolchains
+        run: ./bin/envy sync
 
       # Stamps the tag into cobs.h, zips it up with cobs.c, and composes the notes.
       # Run it locally to see exactly what a tag would ship.
@@ -238,6 +284,40 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 release.py --tag "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --out build/release
+
+      # Test before publishing, so the tarball comes from the tree the tests ran on.
+      - name: Build and test the npm package
+        run: make js-test
+
+      # Stamps build/js only; the source manifest keeps its 0.0.0 placeholder.
+      # stdout is the dist-tag, so a prerelease cannot land on `latest`.
+      - name: Stamp the package version
+        id: npm
+        run: echo "dist_tag=$(python3 release.py --stamp-npm build/js --tag "${GITHUB_REF_NAME}")" >> "$GITHUB_OUTPUT"
+
+      # Not `make js-pack`: it depends on js-package, which would re-copy the
+      # unstamped manifest. Nothing may re-assemble build/js past this point.
+      - name: Pack the tarball for the release asset
+        working-directory: build/js
+        run: npm pack --pack-destination ..
+
+      - name: Publish to npm
+        working-directory: build/js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --tag "${{ steps.npm.outputs.dist_tag }}"
+
+      # GitHub Packages only accepts @owner/name, so republish the same build under
+      # a scoped name. npm keeps the unscoped `nanocobs`.
+      - name: Publish to GitHub Packages
+        working-directory: build/js
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 ../../release.py --stamp-npm . --tag "${GITHUB_REF_NAME}" \
+            --npm-name "@${GITHUB_REPOSITORY_OWNER}/nanocobs" >/dev/null
+          npm publish --registry=https://npm.pkg.github.com \
+            --tag "${{ steps.npm.outputs.dist_tag }}"
 
       - name: Create release
         env:
@@ -247,4 +327,5 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --title "${GITHUB_REF_NAME}" \
             --notes-file build/release/release_notes.txt \
-            "build/release/nanocobs-${GITHUB_REF_NAME}.zip"
+            "build/release/nanocobs-${GITHUB_REF_NAME}.zip" \
+            build/nanocobs-*.tgz

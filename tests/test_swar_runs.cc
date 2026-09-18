@@ -18,8 +18,10 @@ struct enc_result {
   byte_vec_t buf;
   size_t len;
   cobs_ret_t ret;
+  size_t consumed{ 0u };  // decode only; comparing it diffs consumed on every payload
   bool operator==(enc_result const& o) const {
-    return (ret == o.ret) && (len == o.len) && (buf == o.buf);
+    return (ret == o.ret) && (len == o.len) && (consumed == o.consumed) &&
+           (buf == o.buf);
   }
 };
 
@@ -40,7 +42,7 @@ enc_result encode_with(Fn fn, byte_vec_t const& dec) {
 template <typename Fn>
 enc_result decode_with(Fn fn, byte_t const* enc, size_t enc_len, size_t dec_max) {
   enc_result r{ byte_vec_t(dec_max + 8u, kPoison), 0, COBS_RET_SUCCESS };
-  r.ret = fn(enc, enc_len, r.buf.data(), r.buf.size(), &r.len);
+  r.ret = fn(enc, enc_len, r.buf.data(), r.buf.size(), &r.len, &r.consumed);
   return r;
 }
 
@@ -68,10 +70,11 @@ void check(byte_vec_t const& dec, std::string const& what) {
 
   // In-place decode, the aliasing configuration the fast lanes have to respect.
   byte_vec_t inplace(b.buf.data(), b.buf.data() + b.len);
-  size_t ip_len = 0;
-  REQUIRE(cobs_decode(inplace.data(), b.len, inplace.data(), b.len, &ip_len) ==
-          COBS_RET_SUCCESS);
+  size_t ip_len = 0, ip_consumed = 0;
+  REQUIRE(cobs_decode(inplace.data(), b.len, inplace.data(), b.len, &ip_len,
+                      &ip_consumed) == COBS_RET_SUCCESS);
   REQUIRE(ip_len == dec.size());
+  REQUIRE(ip_consumed == b.len);  // aliasing must not disturb the count
   if (!dec.empty()) {
     REQUIRE(std::memcmp(inplace.data(), dec.data(), dec.size()) == 0);
   }

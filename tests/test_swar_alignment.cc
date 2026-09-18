@@ -64,10 +64,11 @@ TEST_CASE("SWAR alignment: encode and decode at every src/dst offset pair") {
 
           guarded_buf dec(len ? len : 1, (dst_ofs + 5u) % 16u);
           dec.fill(kPoison);
-          size_t dec_len = 0;
-          REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len) ==
-                  COBS_RET_SUCCESS);
+          size_t dec_len = 0, consumed = 0;
+          REQUIRE(cobs_decode(enc.data(), enc_len, dec.data(), dec.size(), &dec_len,
+                              &consumed) == COBS_RET_SUCCESS);
           REQUIRE(dec_len == len);
+          REQUIRE(consumed == enc_len);
           if (len) {
             REQUIRE(std::memcmp(dec.data(), payload.data(), len) == 0);
           }
@@ -112,11 +113,12 @@ TEST_CASE("SWAR alignment: in-place decode with runs long enough to reach the fa
       for (size_t ofs = 0; ofs < 16; ++ofs) {
         guarded_buf buf(enc.size(), ofs);
         buf.assign(enc.data(), enc.size());
-        size_t dec_len = 0;
+        size_t dec_len = 0, consumed = 0;
         // out_dec == enc: a supported, documented aliasing configuration.
-        REQUIRE(cobs_decode(buf.data(), enc.size(), buf.data(), enc.size(), &dec_len) ==
-                COBS_RET_SUCCESS);
+        REQUIRE(cobs_decode(buf.data(), enc.size(), buf.data(), enc.size(), &dec_len,
+                            &consumed) == COBS_RET_SUCCESS);
         REQUIRE(dec_len == len);
+        REQUIRE(consumed == enc.size());
         REQUIRE(std::memcmp(buf.data(), payload.data(), len) == 0);
       }
     }

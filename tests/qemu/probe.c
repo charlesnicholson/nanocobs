@@ -87,10 +87,11 @@ static int run(void) {
 
       pset(ra, 0xCD, sizeof ra);
       pset(rb, 0xCD, sizeof rb);
-      size_t da = 0, db = 0;
-      cobs_ret_t const dra = cobs_ref_decode(a, la, ra, sizeof ra, &da);
-      cobs_ret_t const drb = cobs_decode(b, lb, rb, sizeof rb, &db);
-      if ((dra != drb) || (da != db) || pcmp(ra, rb, sizeof ra)) {
+      size_t da = 0, db = 0, ca = 0, cb = 0;
+      cobs_ret_t const dra = cobs_ref_decode(a, la, ra, sizeof ra, &da, &ca);
+      cobs_ret_t const drb = cobs_decode(b, lb, rb, sizeof rb, &db, &cb);
+      /* consumed on a 16-bit size_t is where a widening bug would show. */
+      if ((dra != drb) || (da != db) || (ca != cb) || pcmp(ra, rb, sizeof ra)) {
         fail("decode", m, n);
         continue;
       }

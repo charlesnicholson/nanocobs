@@ -87,8 +87,10 @@ byte_vec_t do_encode(byte_vec_t const& src) {
 byte_vec_t do_decode_oneshot(byte_vec_t const& enc, size_t max_dec) {
   byte_vec_t dec(max_dec);
   size_t dec_len{ 0u };
-  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len) ==
-          COBS_RET_SUCCESS);
+  size_t consumed{ 0u };
+  REQUIRE(cobs_decode(enc.data(), enc.size(), dec.data(), dec.size(), &dec_len,
+                      &consumed) == COBS_RET_SUCCESS);
+  REQUIRE(consumed == enc.size());
   dec.resize(dec_len);
   return dec;
 }

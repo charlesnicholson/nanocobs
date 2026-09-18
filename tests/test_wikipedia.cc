@@ -21,7 +21,7 @@ void round_trip_inplace(byte_vec_t const &decoded, byte_vec_t const &encoded) {
 
 void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
   std::array<byte_t, 512> enc_actual, dec_actual;
-  size_t enc_actual_len{ 0u }, dec_actual_len{ 0u };
+  size_t enc_actual_len{ 0u }, dec_actual_len{ 0u }, consumed{ 0u };
 
   REQUIRE(cobs_encode(decoded.data(),
                       decoded.size(),
@@ -36,9 +36,11 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                       enc_actual_len,
                       dec_actual.data(),
                       dec_actual.size(),
-                      &dec_actual_len) == COBS_RET_SUCCESS);
+                      &dec_actual_len,
+                      &consumed) == COBS_RET_SUCCESS);
 
   REQUIRE(dec_actual_len == decoded.size());
+  REQUIRE(consumed == enc_actual_len);
   REQUIRE(decoded == byte_vec_t(dec_actual.data(), dec_actual.data() + dec_actual_len));
 
   // Additionaly, in-place decode atop enc_actual using cobs_decode.
@@ -47,9 +49,11 @@ void round_trip(byte_vec_t const &decoded, byte_vec_t const &encoded) {
                       enc_actual_len,
                       enc_actual.data(),
                       enc_actual.size(),
-                      &dec_actual_len) == COBS_RET_SUCCESS);
+                      &dec_actual_len,
+                      &consumed) == COBS_RET_SUCCESS);
 
   REQUIRE(dec_actual_len == decoded.size());
+  REQUIRE(consumed == enc_actual_len);  // in-place consumes the same span
   REQUIRE(decoded == byte_vec_t(enc_actual.data(), enc_actual.data() + dec_actual_len));
 }
 }  // namespace

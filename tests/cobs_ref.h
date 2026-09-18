@@ -22,7 +22,8 @@ cobs_ret_t cobs_ref_decode(void const* enc,
                            size_t enc_len,
                            void* out_dec,
                            size_t dec_max,
-                           size_t* out_dec_len);
+                           size_t* out_dec_len,
+                           size_t* out_enc_consumed);
 
 cobs_ret_t cobs_ref_encode_inc_begin(cobs_enc_ctx_t* ctx, void* buf, size_t buf_max);
 
