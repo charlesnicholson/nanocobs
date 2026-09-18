@@ -319,7 +319,8 @@ tests included.
 The same tag also publishes the npm package: to npmjs.com as `nanocobs`, and to GitHub
 Packages as `@charlesnicholson/nanocobs`, since that registry only accepts scoped names. A
 prerelease tag (`v1.2.3-rc.1`) publishes under the `next` dist-tag so it cannot become
-`latest`.
+`latest`. Both publishes are skipped unless an `NPM_TOKEN` secret is set, so a tag ships
+the C zip either way.
 
 The version lives in exactly one place, and it isn't the repository: `cobs.h` carries a
 `@COBS_VERSION@` placeholder and `js/package.json` a `0.0.0` one, both stamped by the

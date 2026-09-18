@@ -258,6 +258,10 @@ jobs:
       packages: write      # GitHub Packages npm registry
       id-token: write      # OIDC, for npm provenance
 
+    # Job-level so the steps below can test it; `if` cannot read secrets directly.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
     steps:
       - uses: actions/checkout@v7
         with:
@@ -301,15 +305,18 @@ jobs:
         working-directory: build/js
         run: npm pack --pack-destination ..
 
+      # Skipped until NPM_TOKEN exists, so tagging ships the C zip either way.
       - name: Publish to npm
+        if: ${{ env.NPM_TOKEN != '' }}
         working-directory: build/js
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
         run: npm publish --provenance --access public --tag "${{ steps.npm.outputs.dist_tag }}"
 
       # GitHub Packages only accepts @owner/name, so republish the same build under
       # a scoped name. npm keeps the unscoped `nanocobs`.
       - name: Publish to GitHub Packages
+        if: ${{ env.NPM_TOKEN != '' }}
         working-directory: build/js
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
