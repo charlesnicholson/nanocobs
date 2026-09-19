@@ -19,8 +19,10 @@ Standard library only, like release.py.
 import argparse
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SOURCES = [ROOT / "js" / "native" / "cobs_napi.c", ROOT / "cobs.c"]
@@ -82,17 +84,22 @@ def find_node_lib(version, arch):
     return None
 
 
-def command(platform, out, headers, node_lib):
+def command(platform, out, headers, node_lib, scratch):
     inc = ["-I", str(headers), "-I", str(ROOT), "-I", str(ROOT / "js" / "native")]
     if platform == "win32":
+        # Everything but the .node goes to |scratch|: cl writes an .obj per source and
+        # /LD adds an import .lib and .exp, and with /Fo aimed at the output directory
+        # they all landed beside the addon and shipped in the tarball.
+        #
         # /W3 rather than /W4 /WX: the C is already -Wall -Wextra -Werror clean under
         # clang and gcc, and node_api.h is not ours to keep warning-free.
         return [
             "cl", "/nologo", "/O2", "/DNDEBUG", "/W3", "/LD",
             f"/I{headers}", f"/I{ROOT}", f"/I{ROOT / 'js' / 'native'}",
             *[str(s) for s in SOURCES],
-            f"/Fe:{out}", f"/Fo:{out.parent}{os.sep}",
+            f"/Fe:{out}", f"/Fo:{scratch}{os.sep}",
             "/link", "/DLL", str(node_lib),
+            f"/IMPLIB:{scratch / 'nanocobs.lib'}",
         ]
     # napi_* is resolved by the host process at load, not linked in.
     link = (["-bundle", "-undefined", "dynamic_lookup"] if platform == "darwin"
@@ -136,14 +143,25 @@ def main():
     # and double the path.
     out = (pathlib.Path(args.pkg) / "prebuilds" / target / "nanocobs.node").resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
-    cmd = command(platform, out, headers, node_lib)
-    print("> " + " ".join(cmd))
-    result = subprocess.run(cmd, cwd=out.parent if platform == "win32" else None)
+
+    with tempfile.TemporaryDirectory() as td:
+        scratch = pathlib.Path(td)
+        cmd = command(platform, out, headers, node_lib, scratch)
+        print("> " + " ".join(cmd))
+        result = subprocess.run(cmd, cwd=scratch)
     if result.returncode:
         return result.returncode
     if not out.is_file():
         print(f"{out} was not produced", file=sys.stderr)
         return 1
+
+    # The prebuilds directory is shipped verbatim, so nothing but the addon may be in
+    # it. Belt and braces over the redirects above, which cannot be tested off Windows.
+    for stray in out.parent.iterdir():
+        if stray != out:
+            print(f"  removing stray build output {stray.name}")
+            shutil.rmtree(stray) if stray.is_dir() else stray.unlink()
+
     print(f"  {out} ({out.stat().st_size} bytes)")
     return 0
 
