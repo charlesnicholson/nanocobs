@@ -106,38 +106,59 @@ wrappers, so the numbers above are reproducible without installing anything.
 
 ## JavaScript
 
-The same implementation is published to npm as [`nanocobs`](https://www.npmjs.com/package/nanocobs),
-compiled to WebAssembly. It wraps the one-shot `cobs_encode` and `cobs_decode` only.
+The same implementation is published to npm as [`nanocobs`](https://www.npmjs.com/package/nanocobs).
+It wraps the one-shot `cobs_encode` and `cobs_decode` only.
 
 ```sh
 npm install nanocobs
 ```
 
 ```js
-import { encode, decode, decodeFirst } from 'nanocobs';
+import { encode, decode, decodeFrames } from 'nanocobs';
 
 const frame = encode(payload);   // includes the trailing 0x00 delimiter
-const back = decode(frame);      // one frame; rejects an interior delimiter
+const back = decode(frame);      // the frame at the front; anything after it is ignored
 ```
 
-`decodeFirst` surfaces `cobs_decode`'s `out_enc_consumed`, so walking a buffer of
-back-to-back frames needs no delimiter scanning on either side of the boundary:
+`decode` is `cobs_decode`: it stops at the first delimiter, ignores whatever follows, and
+returns the same `cobs_ret_t` the C does. For a buffer holding back-to-back frames -- a
+socket read, say -- `decodeFrames` copies it into wasm memory once and walks it there,
+taking frame boundaries from `cobs_decode`'s `out_enc_consumed` rather than scanning:
 
 ```js
-let i = 0;
-while (i < buf.length) {
-  const { payload, consumed } = decodeFirst(buf.subarray(i));
-  handle(payload);
-  i += consumed;
-}
+let carry = new Uint8Array(0);
+socket.on('data', (chunk) => {
+  const buf = concat(carry, chunk);
+  const { frames, consumed } = decodeFrames(buf);
+  for (const f of frames) handle(f);
+  carry = buf.subarray(consumed);   // an incomplete trailing frame, if there was one
+});
 ```
+
+`consumed` stops short of a partial frame at the end, so the carry is exactly what the
+next read has to complete. `decodeFirst` is the one-frame form of the same thing; prefer
+`decodeFrames` for a whole buffer, because `decodeFirst` copies all of what it is handed
+and so a `decodeFirst(buf.subarray(i))` loop costs O(n^2) in the frame count.
+
+The package has two backends: a native N-API addon where it carries a prebuild for the
+host, and WebAssembly everywhere else. They are the same `cobs.c` and are held to identical
+bytes and identical error codes by `js/test/conformance.test.mjs`, which runs every case
+through both, so the choice is about throughput rather than behaviour. `backend` says which
+one loaded; log it, because a silent fallback looks exactly like the native path.
+
+There is no install script, so `npm install` never runs a compiler and `npm ci
+--ignore-scripts` still lands on native -- prebuilds resolve at import time, not install
+time. Prebuilds cover `darwin-arm64`, `darwin-x64`, `linux-{x64,arm64}` for glibc and musl,
+and `win32-x64`; the addon's sources ship too, for anywhere else. Browsers, bundlers, Deno
+and Workers resolve to the wasm entry point through `package.json` export conditions and
+never see the native loader.
 
 The wasm is ~2 KB with zero imports, inlined as base64 so there is no file to load and no
 bundler configuration. Nothing generated is checked in: `make js-wasm` compiles `cobs.c`
-and `js/shim.c`, `make js-test` assembles and tests the package under `build/js`, and the
-release builds it from source. `js/tools/wasm_inspect.py` asserts on the artifact -- zero
-imports, the exact export set, no data or start section -- which is the wasm counterpart to
-`make size-nolibc`.
+and `js/shim.c`, `make js-addon` builds the host's prebuild, `make js-test` assembles and
+tests the package under `build/js`, and the release builds it all from source.
+`js/tools/wasm_inspect.py` asserts on the artifact -- zero imports, the exact export set,
+no data or start section -- which is the wasm counterpart to `make size-nolibc`.
 
 ## Usage
 
@@ -324,10 +345,16 @@ repository, so there is no token to rotate. Both publishes skip a version that i
 up, and the GitHub release is created before them, so a registry failure cannot withhold
 the C zip.
 
-The version lives in exactly one place, and it isn't the repository: `cobs.h` carries a
-`@COBS_VERSION@` placeholder and `js/package.json` a `0.0.0` one, both stamped by the
-release, so nothing checked in can disagree with what shipped. `release.py --check` guards
-both in presubmit.
+The version lives in exactly one place, and it isn't the repository: `cobs.h` and
+`js/package.json` both carry a `@COBS_VERSION@` placeholder, stamped by the release, so
+nothing checked in can disagree with what shipped and no commit ever bumps a version.
+`release.py --check` guards both in presubmit.
+
+The manifest placeholder is deliberately not valid semver. `npm publish` refuses it, so a
+release that somehow skipped the stamp fails loudly instead of shipping a plausible-looking
+version. `npm pack` does not validate, so `make js-package` substitutes `0.0.0-dev` when it
+assembles `build/js` and local packing and tests keep working; the release stamps the real
+tag over that.
 To see exactly what a tag would ship, run it yourself:
 
 ```

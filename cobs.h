@@ -100,14 +100,20 @@ cobs_ret_t cobs_decode_tinyframe(void* buf, size_t len);
 // |enc| + that count is the next frame. It may be null, and is written only on
 // COBS_RET_SUCCESS.
 //
-// If |enc|, |out_dec|, or |out_dec_len| are null, or if any of the lengths are invalid,
-// the function will fail with COBS_RET_ERR_BAD_ARG.
+// If |enc| or |out_dec| or |out_dec_len| are null, or if |enc_len| is less than 2, the
+// function will fail with COBS_RET_ERR_BAD_ARG.
 //
-// If |enc| starts with a 0 byte, or does not end with a 0 byte, the function will fail
-// with COBS_RET_ERR_BAD_PAYLOAD.
+// If a code byte points across a 0 byte inside its own block, the frame is malformed and
+// the function will fail with COBS_RET_ERR_BAD_PAYLOAD.
 //
-// If the decoding exceeds |dec_max| bytes, the function will fail with
-// COBS_RET_ERR_EXHAUSTED.
+// If the decoding exceeds |dec_max| bytes, or the input runs out before a delimiter is
+// found, the function will fail with COBS_RET_ERR_EXHAUSTED. Because decoding stops at
+// the first delimiter, what follows one is never examined: a buffer that ends in a
+// nonzero byte is fine so long as a delimiter appeared earlier.
+//
+// A frame starting with a 0 byte is malformed, but no check is spent on it: the block
+// length wraps and the two bounds above clamp it, so it surfaces as whichever of
+// BAD_PAYLOAD or EXHAUSTED those bounds reach first.
 cobs_ret_t cobs_decode(void const* enc,
                        size_t enc_len,
                        void* out_dec,

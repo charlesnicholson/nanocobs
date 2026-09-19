@@ -2,9 +2,8 @@
 //
 // Ported from tests/test_cobs_decode.cc.
 //
-// One divergence, noted per case: decode() rejects a frame whose only 0x00 is not
-// its last byte, since cobs_decode stops at the first delimiter and drops the rest
-// (cobs.c:594-597, 527-531). decodeFirst() is the multi-frame entry point.
+// No divergence: decode() is cobs_decode, including stopping at the first delimiter
+// and ignoring anything after it. decodeFirst() adds only out_enc_consumed.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +32,6 @@ test('Decoding validation', async (t) => {
   });
 
   await t.test('Invalid payload: code byte jumps over internal zeroes', () => {
-    // The C says BAD_PAYLOAD; the JS delimiter check reaches it one step earlier.
     assert.throws(() => cobs.decode(u8(5, 1, 0, 0, 1, 0)), (e) => e.code === 'BAD_PAYLOAD');
   });
 
@@ -55,8 +53,8 @@ test('Decoding validation', async (t) => {
   });
 
   await t.test('Missing trailing delimiter', () => {
-    // The C reaches EXHAUSTED here; the JS check names it a malformed frame first.
-    assert.throws(() => cobs.decode(u8(0x02, 0x01)), (e) => e.code === 'BAD_PAYLOAD');
+    // No delimiter anywhere in the buffer: the decoder runs out of input.
+    assert.throws(() => cobs.decode(u8(0x02, 0x01)), (e) => e.code === 'EXHAUSTED');
   });
 });
 

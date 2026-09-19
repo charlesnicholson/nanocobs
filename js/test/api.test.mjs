@@ -72,9 +72,19 @@ test('encodeInto and decodeInto allocate nothing and report lengths', () => {
 
 test('try* forms return negated cobs_ret_t instead of throwing', () => {
   const out = new Uint8Array(8);
-  assert.equal(cobs.tryDecodeInto(u8(0x09, 0x09), out), -2);       // no delimiter
+  assert.equal(cobs.tryDecodeInto(u8(0x09, 0x09), out), -3);       // input ran out
   assert.equal(cobs.tryEncodeInto(u8(1, 2, 3), new Uint8Array(1)), -1);  // cap < 2
   assert.ok(cobs.tryEncodeInto(u8(1, 2, 3), new Uint8Array(8)) > 0);
+});
+
+test('a leading 0x00 is decided by the bounds, exactly as cobs.c decides it', () => {
+  // cobs.c has no zero test on the code byte: "while (block - 1)" wraps, so a frame
+  // starting with 0x00 reads as an unbounded block, and whichever bound it reaches
+  // first picks the error. Same frame, two destinations, two answers -- both pinned
+  // because the package must report what the C reports, wart included.
+  const frame = u8(0x00, 0x09, 0x00, 0x00);
+  assert.equal(cobs.tryDecodeInto(frame, new Uint8Array(2)), -2);  // hits the zero
+  assert.equal(cobs.tryDecodeInto(frame, new Uint8Array(1)), -3);  // fills dst first
 });
 
 test('encodeInto with a one-byte destination is BAD_ARG, not EXHAUSTED', () => {
@@ -86,28 +96,44 @@ test('encodeInto with a one-byte destination is BAD_ARG, not EXHAUSTED', () => {
                 (e) => e.code === 'EXHAUSTED');
 });
 
-test('decode rejects malformed frames', () => {
-  // No delimiter to misplace, so it reaches the C and is rejected on length.
+test('decode rejects malformed frames with the code the C returns', () => {
+  // Every one of these is the raw cobs_decode answer: the package adds no rule of
+  // its own on the way in.
   assert.throws(() => cobs.decode(u8()), (e) => e.code === 'BAD_ARG');
-  // The C would say BAD_ARG on length, but the JS delimiter check runs first and
-  // names it: no trailing zero. BAD_PAYLOAD is the more useful answer.
-  assert.throws(() => cobs.decode(u8(0x01)), (e) => e.code === 'BAD_PAYLOAD');
-  assert.throws(() => cobs.decode(u8(0x09, 0x09)), (e) => e.code === 'BAD_PAYLOAD');
+  assert.throws(() => cobs.decode(u8(0x01)), (e) => e.code === 'BAD_ARG');
+  // Ran out of input before finding a delimiter.
+  assert.throws(() => cobs.decode(u8(0x09, 0x09)), (e) => e.code === 'EXHAUSTED');
   // A well-delimited frame whose code byte points past its end.
   assert.throws(() => cobs.decode(u8(0x03, 0x00)), (e) => e.code === 'EXHAUSTED');
+  // A code byte that jumps over an interior zero is still a malformed frame.
+  assert.throws(() => cobs.decode(u8(0x04, 0x01, 0x00, 0x03, 0x00)),
+                (e) => e.code === 'BAD_PAYLOAD');
 });
 
-test('decode is strict about trailing data rather than silently truncating', () => {
-  // cobs_decode stops at the first delimiter and drops the rest, which is wrong
-  // for a caller holding more than one frame.
+test('decode stops at the first delimiter and ignores the rest', () => {
+  // cobs_decode's contract (cobs.h:97): enc may hold more than one frame. decode()
+  // hands back the first and drops the remainder; decodeFirst() is how a caller
+  // learns where the next one starts.
   const two = new Uint8Array([...cobs.encode(u8(1, 2)), ...cobs.encode(u8(3, 4))]);
-  assert.throws(() => cobs.decode(two), (e) => e.code === 'BAD_PAYLOAD');
+  assert.deepEqual(cobs.decode(two), u8(1, 2));
+  const { payload, consumed } = cobs.decodeFirst(two);
+  assert.deepEqual(payload, u8(1, 2));
+  assert.deepEqual(cobs.decode(two.subarray(consumed)), u8(3, 4));
+  // An empty first frame is still a frame, not a malformed buffer.
+  assert.deepEqual(cobs.decode(u8(1, 0, 1, 0)), u8());
+});
+
+test('decodeInto stops at the first delimiter too', () => {
+  const two = new Uint8Array([...cobs.encode(u8(1, 2)), ...cobs.encode(u8(3, 4))]);
+  const out = new Uint8Array(16);
+  assert.equal(cobs.decodeInto(two, out), 2);
+  assert.deepEqual(out.subarray(0, 2), u8(1, 2));
 });
 
 
 test('CobsError carries code, ret, and a cross-realm-safe brand', () => {
   try {
-    cobs.decode(u8(0x09, 0x09));
+    cobs.decode(u8(0x04, 0x01, 0x00, 0x03, 0x00));
     assert.fail('expected a throw');
   } catch (e) {
     assert.equal(e.name, 'CobsError');
