@@ -198,19 +198,10 @@ JS_DEV_VERSION := 0.0.0-dev
 # across Node versions, so nothing here varies with the Node that loads it. The
 # package resolves these at require time, so no install script is ever needed and
 # `npm ci --ignore-scripts` still lands on native.
-NODE_VER := $(shell $(NODE) -p 'process.versions.node' 2>/dev/null)
-NODE_TARGET := $(shell $(NODE) -p "process.platform+'-'+process.arch+(process.platform==='linux'?(process.report.getReport().header.glibcVersionRuntime?'-glibc':'-musl'):'')" 2>/dev/null)
-# node-gyp caches the headers per version; set NODE_HEADERS to use your own copy.
-# Nothing here installs them -- without them the addon is skipped and the package
-# ships wasm-only, which is a valid package, just a slower one.
-NODE_HEADERS ?= $(firstword $(wildcard \
-					$(HOME)/Library/Caches/node-gyp/$(NODE_VER)/include/node \
-					$(HOME)/.cache/node-gyp/$(NODE_VER)/include/node \
-					$(HOME)/.node-gyp/$(NODE_VER)/include/node))
-# napi_* is resolved by the host process at load, not linked in.
-NAPI_LDFLAGS := $(if $(filter Darwin,$(OS)),-bundle -undefined dynamic_lookup,-shared)
-NAPI_CFLAGS := -O3 -DNDEBUG -std=c99 -Wall -Wextra -Werror -fPIC
-JS_PREBUILD := $(JS_PKG)/prebuilds/$(NODE_TARGET)/nanocobs.node
+# js/tools/build_addon.py finds the headers, picks the per-platform link line and
+# names the output directory the way js/src/loader.js will look for it. Nothing here
+# installs anything: without headers the addon is skipped and the package ships
+# wasm-only, which is valid, just slower.
 
 # Golden vectors, produced by the C so the JS package is pinned to its bytes. Built
 # like the benchmark: own flags, no -Os, no sanitizers, .vo suffix to avoid collisions.
@@ -230,18 +221,15 @@ $(BUILD_DIR)/cobs_vectors: $(VEC_OBJS) Makefile
 
 .PHONY: js-wasm js-package js-test js-pack js-vectors js-addon
 
-# Skips rather than fails without headers: a wasm-only package is still correct, and
-# `make js-test` should work on a machine that has never run node-gyp.
+# Exit 2 is "no Node headers here", which is not a failure: a wasm-only package is
+# still a correct package, and `make js-test` should work on a machine that has never
+# run node-gyp. Any other nonzero status is a real build failure and propagates.
 js-addon:
-ifeq ($(NODE_HEADERS),)
-	@echo "js-addon: no Node headers for v$(NODE_VER); skipping the native backend."
-	@echo "          run 'npx node-gyp install' or set NODE_HEADERS to build it."
-else
-	@mkdir -p $(dir $(JS_PREBUILD))
-	$(CC) $(NAPI_CFLAGS) $(NAPI_LDFLAGS) -I$(NODE_HEADERS) -I. -Ijs/native \
-		-o $(JS_PREBUILD) js/native/cobs_napi.c cobs.c
-	@echo "js-addon: $(JS_PREBUILD)"
-endif
+	@$(PYTHON) js/tools/build_addon.py --node $(NODE) --pkg $(JS_PKG); \
+	 rc=$$?; \
+	 if [ $$rc -eq 2 ]; then \
+		echo "js-addon: skipping the native backend; the package will be wasm-only."; \
+	 elif [ $$rc -ne 0 ]; then exit $$rc; fi
 
 # Compile the wasm and the JS module that inlines it, both under build/. Nothing
 # generated is checked in. build_wasm.py then runs wasm_inspect.py on the result.

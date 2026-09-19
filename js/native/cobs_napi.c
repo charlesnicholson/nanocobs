@@ -101,8 +101,12 @@ static napi_value js_encode_into(napi_env env, napi_callback_info info) {
       !as_u8(env, argv[1], &dst, &dlen)) {
     return type_error(env, "nanocobs: arguments must be Uint8Array");
   }
+  // Two statements on purpose: C does not order sibling arguments, so passing the
+  // call and |out| together let x86-64 read |out| before cobs_encode filled it in,
+  // and every encodeInto returned 0 there while arm64 was fine.
   size_t out = 0;
-  return i32(env, ret_or_len(cobs_encode(src, slen, dst, dlen, &out), out));
+  cobs_ret_t const r = cobs_encode(src, slen, dst, dlen, &out);
+  return i32(env, ret_or_len(r, out));
 }
 
 // |consumed| is an optional Uint32Array whose [0] receives cobs_decode's

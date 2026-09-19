@@ -29,12 +29,22 @@ export function loadNative() {
   const here = dirname(fileURLToPath(import.meta.url));
   const require = createRequire(import.meta.url);
   const base = `${process.platform}-${process.arch}`;
-  // The bare target is the fallback for platforms where libc is not a variable.
-  for (const target of [`${base}${libcSuffix()}`, base]) {
+  // The bare target is the fallback for platforms where libc is not a variable, where
+  // it collapses onto the first candidate -- deduped so a broken prebuild is not
+  // reported twice.
+  for (const target of [...new Set([`${base}${libcSuffix()}`, base])]) {
+    const path = join(here, '..', 'prebuilds', target, 'nanocobs.node');
     try {
-      return require(join(here, '..', 'prebuilds', target, 'nanocobs.node'));
-    } catch {
-      // Wrong platform, or a prebuild this tarball does not carry. Try the next.
+      return require(path);
+    } catch (e) {
+      // Not carrying a prebuild for this platform is the ordinary case and says
+      // nothing. Carrying one that will not load is a broken install -- a truncated
+      // download, the wrong architecture, a missing system library -- and falling
+      // back from that silently hides a real problem, so name it once and carry on.
+      if (e?.code !== 'MODULE_NOT_FOUND') {
+        console.warn(`nanocobs: ${path} exists but failed to load ` +
+                     `(${e?.message ?? e}); falling back to wasm`);
+      }
     }
   }
   return null;
