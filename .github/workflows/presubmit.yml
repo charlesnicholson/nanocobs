@@ -288,28 +288,35 @@ jobs:
       matrix:
         include:
           - { target: darwin-x64+arm64,  runs-on: macos-latest,
-              flags: '--arch x64+arm64' }
+              flags: '--arch x64+arm64', expect: 'darwin-x64+arm64/nanocobs.node' }
           - { target: linux-x64-glibc,   runs-on: ubuntu-latest,
-              flags: '--tag-libc' }
+              flags: '--tag-libc', expect: 'linux-x64/nanocobs.glibc.node' }
           - { target: linux-arm64-glibc, runs-on: ubuntu-24.04-arm,
-              flags: '--tag-libc' }
+              flags: '--tag-libc', expect: 'linux-arm64/nanocobs.glibc.node' }
           - { target: linux-x64-musl,    runs-on: ubuntu-latest,
-              flags: '--tag-libc', docker: 'node:24-alpine' }
+              flags: '--tag-libc', docker: 'node:24-alpine',
+              expect: 'linux-x64/nanocobs.musl.node' }
           - { target: linux-arm64-musl,  runs-on: ubuntu-24.04-arm,
-              flags: '--tag-libc', docker: 'node:24-alpine' }
+              flags: '--tag-libc', docker: 'node:24-alpine',
+              expect: 'linux-arm64/nanocobs.musl.node' }
           # Emulated. Node 24 has no armv7 build, so those two use Node 22 headers;
           # N-API is ABI-stable, so the result still loads on any Node that has it.
           - { target: linux-ppc64-glibc, runs-on: ubuntu-latest, qemu: 'linux/ppc64le',
-              flags: '--tag-libc', docker: 'node:24' }
+              flags: '--tag-libc', docker: 'node:24',
+              expect: 'linux-ppc64/nanocobs.glibc.node' }
           - { target: linux-arm-glibc,   runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
-              flags: '--tag-libc', docker: 'node:22' }
+              flags: '--tag-libc', docker: 'node:22',
+              expect: 'linux-arm/nanocobs.glibc.node' }
           - { target: linux-arm-musl,    runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
-              flags: '--tag-libc', docker: 'node:22-alpine' }
-          - { target: win32-x64,         runs-on: windows-latest, flags: '' }
+              flags: '--tag-libc', docker: 'node:22-alpine',
+              expect: 'linux-arm/nanocobs.musl.node' }
+          - { target: win32-x64,         runs-on: windows-latest, flags: '',
+              expect: 'win32-x64/nanocobs.node' }
           # Cross-compiled: an x64 runner cannot execute ARM64, so this one is built
           # but never run. The alternative is Windows-on-ARM silently getting wasm.
           - { target: win32-arm64,       runs-on: windows-latest,
-              flags: '--arch arm64', cross: true }
+              flags: '--arch arm64', cross: true,
+              expect: 'win32-arm64/nanocobs.node' }
 
     steps:
       - uses: actions/checkout@v7
@@ -356,19 +363,23 @@ jobs:
         shell: cmd
         run: cd build\js && node --test || exit /b 1
 
+      # The directory is <platform>-<arch> and the libc is a filename tag, so a
+      # mislabelled leg would otherwise overwrite its sibling's binary in the shared
+      # directory rather than failing.
       - name: Confirm the target is what we think it is
         shell: bash
         run: |
           set -eu
-          dir="build/js/prebuilds/${{ matrix.target }}"
-          test -d "$dir" || { echo "expected $dir, got:"; find build/js/prebuilds; exit 1; }
-          find "$dir" -name '*.node' | grep -q . || { echo "no addon in $dir"; exit 1; }
-          find "$dir" -type f
+          want="build/js/prebuilds/${{ matrix.expect }}"
+          test -f "$want" || { echo "expected $want, got:"; find build/js/prebuilds -type f; exit 1; }
+          find build/js/prebuilds -type f
 
+      # The whole tree, so glibc and musl legs merge into one directory downstream
+      # instead of replacing each other.
       - uses: actions/upload-artifact@v4
         with:
           name: prebuild-${{ matrix.target }}
-          path: build/js/prebuilds/${{ matrix.target }}
+          path: build/js/prebuilds
           if-no-files-found: error
 
   all-checks-pass:
@@ -431,10 +442,11 @@ jobs:
       - name: Lay the prebuilds out for the package
         run: |
           set -eu
+          # Each artifact is a prebuilds/ tree holding one binary; merge them, since
+          # the glibc and musl builds for an architecture share a directory.
+          mkdir -p build/js/prebuilds
           for d in build/prebuilds/prebuild-*/; do
-            target="$(basename "$d" | sed 's/^prebuild-//')"
-            mkdir -p "build/js/prebuilds/$target"
-            cp "$d"/*.node "build/js/prebuilds/$target/"
+            cp -R "$d". build/js/prebuilds/
           done
           find build/js/prebuilds -type f | sort
           # A release that quietly shipped one platform is worse than a failed one.
