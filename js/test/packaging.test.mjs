@@ -7,8 +7,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
-const pkgDir = new URL('..', import.meta.url).pathname;
+// fileURLToPath, not .pathname: on Windows the latter yields "/D:/a/..." -- a leading
+// slash before the drive letter -- which is not a path any API will accept, and shows
+// up as a bewildering ENOENT against cmd.exe rather than against the directory.
+const pkgDir = fileURLToPath(new URL('..', import.meta.url));
 
 test('npm pack ships exactly the intended files', () => {
   // On Windows npm is npm.cmd, which execFileSync will not find without PATHEXT and
@@ -16,7 +20,10 @@ test('npm pack ships exactly the intended files', () => {
   // run a .cmd. The arguments are all literals, so the shell has nothing to chew on.
   const out = execFileSync('npm', ['pack', '--dry-run', '--json'],
                            { cwd: pkgDir, encoding: 'utf8', shell: true });
-  const all = JSON.parse(out)[0].files.map(f => f.path).sort();
+  // Tarball paths are POSIX, but normalise anyway: this assertion has never run on
+  // Windows until now, and a separator mismatch is the obvious way for it to fail
+  // there next.
+  const all = JSON.parse(out)[0].files.map(f => f.path.replace(/\\/g, '/')).sort();
 
   // Prebuilds vary by host and by what the release matrix produced, so they are
   // checked by shape. Everything else is pinned: a stray test directory or a missing
