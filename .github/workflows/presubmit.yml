@@ -224,7 +224,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
       - name: Cache the envy toolchain
@@ -248,7 +248,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
       - name: Cache the envy toolchain
@@ -260,7 +260,7 @@ jobs:
         run: ./bin/envy sync
       - name: Assemble
         run: make js-package
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: js-package
           path: build/js
@@ -320,17 +320,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: ${{ !matrix.docker }}
         with:
           node-version: '24'
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: js-package
           path: build/js
       - name: Emulation for ${{ matrix.qemu }}
         if: ${{ matrix.qemu }}
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       - name: Build and test
         if: ${{ !matrix.docker && runner.os != 'Windows' }}
@@ -376,7 +376,7 @@ jobs:
 
       # The whole tree, so glibc and musl legs merge into one directory downstream
       # instead of replacing each other.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: prebuild-${{ matrix.target }}
           path: build/js/prebuilds
@@ -405,7 +405,7 @@ jobs:
         with:
           fetch-depth: 0  # release.py walks back to the previous tag for the notes
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'  # ships an npm new enough for trusted publishing
 
@@ -435,7 +435,7 @@ jobs:
       # after js-test because js-package prunes what it assembles, and a prebuild
       # dropped in before that would be swept away.
       - name: Collect the prebuilds
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: prebuild-*
           path: build/prebuilds
