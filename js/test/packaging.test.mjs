@@ -11,10 +11,11 @@ import { readFileSync } from 'node:fs';
 const pkgDir = new URL('..', import.meta.url).pathname;
 
 test('npm pack ships exactly the intended files', () => {
-  // npm is npm.cmd on Windows, and execFileSync does not apply PATHEXT.
-  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const out = execFileSync(npm, ['pack', '--dry-run', '--json'],
-                           { cwd: pkgDir, encoding: 'utf8' });
+  // On Windows npm is npm.cmd, which execFileSync will not find without PATHEXT and
+  // then refuses to exec anyway: since CVE-2024-27980 Node requires shell: true to
+  // run a .cmd. The arguments are all literals, so the shell has nothing to chew on.
+  const out = execFileSync('npm', ['pack', '--dry-run', '--json'],
+                           { cwd: pkgDir, encoding: 'utf8', shell: true });
   const all = JSON.parse(out)[0].files.map(f => f.path).sort();
 
   // Prebuilds vary by host and by what the release matrix produced, so they are
