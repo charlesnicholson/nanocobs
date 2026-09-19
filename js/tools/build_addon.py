@@ -131,7 +131,10 @@ def main():
                   file=sys.stderr)
             return 2
 
-    out = pathlib.Path(args.pkg) / "prebuilds" / target / "nanocobs.node"
+    # Absolute: the Windows branch runs cl.exe with cwd set to this directory, to keep
+    # its .obj litter out of the tree, and a relative /Fo: would resolve against that
+    # and double the path.
+    out = (pathlib.Path(args.pkg) / "prebuilds" / target / "nanocobs.node").resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     cmd = command(platform, out, headers, node_lib)
     print("> " + " ".join(cmd))
