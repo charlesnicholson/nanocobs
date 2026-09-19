@@ -1,8 +1,13 @@
 """Prepare the assets for a nanocobs release. Publishing them is the caller's job.
 
-cobs.h carries a @COBS_VERSION@ placeholder and js/package.json a 0.0.0 one, so nothing
-checked in can go stale. This stamps a tag into them and writes, into --out: a zip of
-cobs.c and the stamped cobs.h, plus release_notes.txt.
+cobs.h and js/package.json both carry a @COBS_VERSION@ placeholder, so nothing checked
+in can go stale and no commit ever bumps a version. This stamps a tag into them and
+writes, into --out: a zip of cobs.c and the stamped cobs.h, plus release_notes.txt.
+
+The manifest placeholder is deliberately not valid semver: `npm publish` rejects it
+outright, so a release that somehow skipped the stamp cannot ship. `npm pack` does not
+validate, so `make js-package` substitutes a throwaway prerelease and local packing,
+testing and `npm pack --dry-run` all keep working.
 
 Standard library only. The release job needs a wasm toolchain for the npm package, not
 for this script.
@@ -21,7 +26,10 @@ _HEADER = "cobs.h"
 _SOURCE = "cobs.c"
 _PLACEHOLDER = "@COBS_VERSION@"
 _NPM_MANIFEST = pathlib.Path("js") / "package.json"
-_NPM_PLACEHOLDER_VERSION = "0.0.0"
+_NPM_PLACEHOLDER_VERSION = _PLACEHOLDER
+# What make js-package substitutes for the placeholder when assembling build/js. A
+# prerelease, so it could never take the `latest` dist-tag even if one escaped.
+_NPM_DEV_VERSION = "0.0.0-dev"
 
 # A tag like v1.2.3-rc.1 must not become `latest` on npm.
 _SEMVER = re.compile(
@@ -107,12 +115,14 @@ def _stamp_npm(pkg_dir: pathlib.Path, tag: str, name: str | None) -> str:
     version, dist_tag = _npm_version(tag)
     path = pkg_dir / "package.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
-    # Idempotent per version, so a second call can rename for a scoped registry
-    # without rebuilding. Any other version means a different release stamped this tree.
-    if manifest.get("version") not in (_NPM_PLACEHOLDER_VERSION, version):
+    # The assembled tree normally holds the dev stamp; the raw placeholder is accepted
+    # too, for a package.json copied rather than built. Idempotent per version, so a
+    # second call can rename for a scoped registry without rebuilding. Anything else
+    # means a different release stamped this tree.
+    if manifest.get("version") not in (_NPM_DEV_VERSION, _NPM_PLACEHOLDER_VERSION, version):
         msg = (
-            f"{path} already holds version {manifest.get('version')!r}, not the "
-            f"placeholder or {version!r}"
+            f"{path} already holds version {manifest.get('version')!r}, not "
+            f"{_NPM_DEV_VERSION!r}, the placeholder, or {version!r}"
         )
         raise ValueError(msg)
     manifest["version"] = version

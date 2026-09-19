@@ -53,13 +53,18 @@ export function refDecodeInto(frame, out) {
   let si = 0, di = 0;
 
   while (si < m) {
+    // cobs.c reads the code byte with no zero test: a 0x00 code makes the "block - 1"
+    // below wrap, so it reads as an unbounded block and the bounds -- not a special
+    // case -- decide between BAD_PAYLOAD and EXHAUSTED. Rejecting it here would model
+    // a check cobs.c does not have, and would disagree whenever out is tight.
     const code = frame[si++];
-    if (code === 0) return { ret: RET.BAD_PAYLOAD };    // a delimiter where a code goes
 
-    for (let k = 1; k < code; ++k) {
+    let block = code;
+    while (((block - 1) >>> 0) !== 0) {                 // cobs.c: while (block - 1)
       // Both bounds before the read, per cobs.c:632-634. Checking the destination
       // after the zero test would say BAD_PAYLOAD where the C says EXHAUSTED.
       if (si >= m || di >= out.length) return { ret: RET.EXHAUSTED };
+      block = (block - 1) >>> 0;
       const b = frame[si++];
       if (b === 0) return { ret: RET.BAD_PAYLOAD };     // interior zero inside a block
       out[di++] = b;

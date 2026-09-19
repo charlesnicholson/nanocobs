@@ -191,6 +191,26 @@ NODE ?= node
 include js/wasm-size-budget.mk
 
 JS_PKG := $(BUILD_DIR)/js
+# Stand-in for the version outside a release; release.py stamps the real tag over it.
+JS_DEV_VERSION := 0.0.0-dev
+
+# The native backend. prebuildify drives node-gyp, which fetches the right headers,
+# finds MSVC on Windows, and reads the per-platform flags out of js/binding.gyp; the
+# output lands where node-gyp-build looks for it at import time. One prebuild per
+# (platform, arch, libc) -- N-API is ABI-stable across Node versions, so nothing here
+# varies with the Node that loads it, and resolution happens at require time, so no
+# install script is ever needed and `npm ci --ignore-scripts` still lands on native.
+PREBUILDIFY ?= prebuildify@6
+# --tag-libc only where there is a libc to distinguish; elsewhere it just puts a
+# misleading "glibc" in the filename. macOS gets both slices in one binary, so one
+# runner covers Intel and Apple Silicon.
+JS_ADDON_FLAGS := --napi --strip
+ifeq ($(OS),Linux)
+JS_ADDON_FLAGS += --tag-libc
+endif
+ifeq ($(OS),Darwin)
+JS_ADDON_FLAGS += --arch x64+arm64
+endif
 
 # Golden vectors, produced by the C so the JS package is pinned to its bytes. Built
 # like the benchmark: own flags, no -Os, no sanitizers, .vo suffix to avoid collisions.
@@ -208,7 +228,16 @@ $(BUILD_DIR)/cobs.c.vo: cobs.c cobs.h Makefile
 $(BUILD_DIR)/cobs_vectors: $(VEC_OBJS) Makefile
 	$(CXX) $(ARCHFLAGS) $(VEC_OBJS) -o $@
 
-.PHONY: js-wasm js-package js-test js-pack js-vectors
+.PHONY: js-wasm js-package js-test js-pack js-vectors js-addon
+
+# Runs in the assembled tree, which is where binding.gyp and the addon sources are.
+# Set JS_SKIP_ADDON=1 to assemble a wasm-only package without a compiler.
+js-addon: js-package
+ifdef JS_SKIP_ADDON
+	@echo "js-addon: skipped; the package will be wasm-only."
+else
+	cd $(JS_PKG) && npx --yes $(PREBUILDIFY) $(JS_ADDON_FLAGS)
+endif
 
 # Compile the wasm and the JS module that inlines it, both under build/. Nothing
 # generated is checked in. build_wasm.py then runs wasm_inspect.py on the result.
@@ -223,21 +252,38 @@ js-vectors: $(BUILD_DIR)/cobs_vectors
 # The publishable tree: hand-written sources from js/, the generated wasm, and the
 # root LICENSE rather than a copy in js/.
 js-package: js-wasm js-vectors
-	@mkdir -p $(JS_PKG)/src $(JS_PKG)/test
-	@cp js/package.json $(JS_PKG)/
-	@cp js/src/index.js js/src/index.d.ts js/src/base64.js $(JS_PKG)/src/
+	@mkdir -p $(JS_PKG)/src $(JS_PKG)/test $(JS_PKG)/native
+	@# cp never removes, so a source file deleted upstream would linger here and ship.
+	@# Clear what this recipe hand-copies; wasm.js and vectors.json come from the
+	@# prerequisites above and must survive.
+	@find $(JS_PKG)/src -maxdepth 1 \( -name '*.js' ! -name 'wasm.js' -o -name '*.d.ts' \) \
+		-delete
+	@rm -f $(JS_PKG)/test/*.mjs $(JS_PKG)/native/*
+	@# The manifest placeholder is not valid semver, so npm publish refuses it and a
+	@# release that skipped its stamp cannot ship. npm pack does not check, so a
+	@# throwaway prerelease goes in here to keep local packing and tests working.
+	@sed 's/@COBS_VERSION@/$(JS_DEV_VERSION)/' js/package.json > $(JS_PKG)/package.json
+	@cp js/src/index.js js/src/index.d.ts js/src/base64.js js/src/shared.js \
+		js/src/native.js js/src/node.js $(JS_PKG)/src/
+	@# The addon's sources ship too, so a platform without a prebuild can build it by
+	@# hand. cobs.c and cobs.h come from the repo root; binding.gyp expects native/.
+	@cp js/native/cobs_napi.c cobs.c cobs.h $(JS_PKG)/native/
+	@cp js/binding.gyp $(JS_PKG)/
+	@# node-gyp-build is a runtime dependency now, so the assembled tree needs it
+	@# present for the tests, and prebuildify runs from here too.
+	@cd $(JS_PKG) && npm install --silent --no-audit --no-fund --omit=dev >/dev/null
 	@cp LICENSE $(JS_PKG)/LICENSE
 	@cp js/README.md $(JS_PKG)/README.md
 	@if [ -d js/test ]; then cp js/test/*.mjs $(JS_PKG)/test/ 2>/dev/null || true; fi
 	@echo "assembled $(JS_PKG)"
 
 # Bare --test: Node 24 treats a directory argument as a file to execute and fails.
-js-test: js-package
+js-test: js-addon
 	cd $(JS_PKG) && $(NODE) --test
 
 # What the release publishes, from the tested tree. Destination is build/, not the
 # package dir: a tarball inside it would end up inside the next one.
-js-pack: js-package
+js-pack: js-addon
 	cd $(JS_PKG) && npm pack --pack-destination $(CURDIR)/$(BUILD_DIR)
 
 .PHONY: clean

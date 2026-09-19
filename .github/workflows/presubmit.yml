@@ -240,9 +240,151 @@ jobs:
       - name: Pack
         run: make js-pack
 
+  # The portable half of the package -- wasm, vectors, sources, tests -- built once.
+  # Every prebuild target then only needs a C compiler and a Node; the wasm toolchain
+  # has to work on exactly one platform instead of seven.
+  js-package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Cache the envy toolchain
+        uses: actions/cache@v6
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      - name: Toolchains
+        run: ./bin/envy sync
+      - name: Assemble
+        run: make js-package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: js-package
+          path: build/js
+          include-hidden-files: true
+          if-no-files-found: error
+
+  # One prebuilt addon per (platform, arch, libc). prebuildify drives node-gyp, so
+  # each leg needs only a compiler and a Node -- the wasm toolchain lives in the
+  # js-package job and arrives here as an artifact.
+  #
+  # macOS ships one universal binary covering Intel and Apple Silicon, which is also
+  # why there is no macos-13 leg: that label has been retired and jobs using it queue
+  # forever without ever starting.
+  #
+  # musl goes through docker on a glibc runner rather than `container:`: the runner
+  # injects its own glibc-linked Node to execute actions, so actions/checkout cannot
+  # run inside Alpine.
+  prebuilds:
+    name: prebuild (${{ matrix.target }})
+    needs: [js-package]
+    runs-on: ${{ matrix.runs-on }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: darwin-x64+arm64,  runs-on: macos-latest,
+              flags: '--arch x64+arm64', expect: 'darwin-x64+arm64/nanocobs.node' }
+          - { target: linux-x64-glibc,   runs-on: ubuntu-latest,
+              flags: '--tag-libc', expect: 'linux-x64/nanocobs.glibc.node' }
+          - { target: linux-arm64-glibc, runs-on: ubuntu-24.04-arm,
+              flags: '--tag-libc', expect: 'linux-arm64/nanocobs.glibc.node' }
+          - { target: linux-x64-musl,    runs-on: ubuntu-latest,
+              flags: '--tag-libc', docker: 'node:24-alpine',
+              expect: 'linux-x64/nanocobs.musl.node' }
+          - { target: linux-arm64-musl,  runs-on: ubuntu-24.04-arm,
+              flags: '--tag-libc', docker: 'node:24-alpine',
+              expect: 'linux-arm64/nanocobs.musl.node' }
+          # Emulated. Node 24 has no armv7 build, so those two use Node 22 headers;
+          # N-API is ABI-stable, so the result still loads on any Node that has it.
+          - { target: linux-ppc64-glibc, runs-on: ubuntu-latest, qemu: 'linux/ppc64le',
+              flags: '--tag-libc', docker: 'node:24',
+              expect: 'linux-ppc64/nanocobs.glibc.node' }
+          - { target: linux-arm-glibc,   runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
+              flags: '--tag-libc', docker: 'node:22',
+              expect: 'linux-arm/nanocobs.glibc.node' }
+          - { target: linux-arm-musl,    runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
+              flags: '--tag-libc', docker: 'node:22-alpine',
+              expect: 'linux-arm/nanocobs.musl.node' }
+          - { target: win32-x64,         runs-on: windows-latest, flags: '',
+              expect: 'win32-x64/nanocobs.node' }
+          # Cross-compiled: an x64 runner cannot execute ARM64, so this one is built
+          # but never run. The alternative is Windows-on-ARM silently getting wasm.
+          - { target: win32-arm64,       runs-on: windows-latest,
+              flags: '--arch arm64', cross: true,
+              expect: 'win32-arm64/nanocobs.node' }
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        if: ${{ !matrix.docker }}
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          name: js-package
+          path: build/js
+      - name: Emulation for ${{ matrix.qemu }}
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build and test
+        if: ${{ !matrix.docker && runner.os != 'Windows' }}
+        run: |
+          cd build/js
+          npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }}
+          node --test
+
+      - name: Build and test (docker)
+        if: ${{ matrix.docker }}
+        run: |
+          docker run --rm ${{ matrix.qemu && format('--platform {0}', matrix.qemu) || '' }} \
+            -v "$PWD":/w -w /w/build/js '${{ matrix.docker }}' sh -eu -c '
+              if command -v apk >/dev/null; then apk add --no-cache build-base python3
+              else apt-get update -qq && apt-get install -y -qq build-essential python3; fi
+              npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }}
+              node --test
+            '
+
+      - name: Build (MSVC)
+        if: ${{ runner.os == 'Windows' }}
+        shell: cmd
+        run: |
+          cd build\js
+          call npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }} || exit /b 1
+
+      # Cross builds cannot run, so the suite only runs on the native Windows leg.
+      - name: Test (MSVC)
+        if: ${{ runner.os == 'Windows' && !matrix.cross }}
+        shell: cmd
+        run: cd build\js && node --test || exit /b 1
+
+      # The directory is <platform>-<arch> and the libc is a filename tag, so a
+      # mislabelled leg would otherwise overwrite its sibling's binary in the shared
+      # directory rather than failing.
+      - name: Confirm the target is what we think it is
+        shell: bash
+        run: |
+          set -eu
+          want="build/js/prebuilds/${{ matrix.expect }}"
+          test -f "$want" || { echo "expected $want, got:"; find build/js/prebuilds -type f; exit 1; }
+          find build/js/prebuilds -type f
+
+      # The whole tree, so glibc and musl legs merge into one directory downstream
+      # instead of replacing each other.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-${{ matrix.target }}
+          path: build/js/prebuilds
+          if-no-files-found: error
+
   all-checks-pass:
     needs: [version-placeholder, sanitizers, linux, macos, win, arm-cm4, swar-configs,
-            exhaustive, qemu, js]
+            exhaustive, qemu, js, js-package, prebuilds]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done
@@ -285,17 +427,39 @@ jobs:
         run: python3 release.py --tag "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --out build/release
 
       # Test before publishing, so the tarball comes from the tree the tests ran on.
+      # This also assembles build/js, which is why the prebuilds land after it.
       - name: Build and test the npm package
         run: make js-test
 
-      # Stamps build/js only; the source manifest keeps its 0.0.0 placeholder.
+      # Every target's addon, from the prebuilds matrix that gated this job. Unpacked
+      # after js-test because js-package prunes what it assembles, and a prebuild
+      # dropped in before that would be swept away.
+      - name: Collect the prebuilds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: prebuild-*
+          path: build/prebuilds
+      - name: Lay the prebuilds out for the package
+        run: |
+          set -eu
+          # Each artifact is a prebuilds/ tree holding one binary; merge them, since
+          # the glibc and musl builds for an architecture share a directory.
+          mkdir -p build/js/prebuilds
+          for d in build/prebuilds/prebuild-*/; do
+            cp -R "$d". build/js/prebuilds/
+          done
+          find build/js/prebuilds -type f | sort
+          # A release that quietly shipped one platform is worse than a failed one.
+          test "$(find build/js/prebuilds -name \*.node | wc -l)" -eq 10
+
+      # Stamps build/js only; the source manifest keeps its @COBS_VERSION@ placeholder.
       # stdout is the dist-tag, so a prerelease cannot land on `latest`.
       - name: Stamp the package version
         id: npm
         run: echo "dist_tag=$(python3 release.py --stamp-npm build/js --tag "${GITHUB_REF_NAME}")" >> "$GITHUB_OUTPUT"
 
-      # Not `make js-pack`: it depends on js-package, which would re-copy the
-      # unstamped manifest. Nothing may re-assemble build/js past this point.
+      # Not `make js-pack`: it depends on js-package, which would re-substitute the
+      # throwaway version. Nothing may re-assemble build/js past this point.
       - name: Pack the tarball for the release asset
         working-directory: build/js
         run: npm pack --pack-destination ..

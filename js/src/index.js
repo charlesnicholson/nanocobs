@@ -5,49 +5,19 @@
 
 import { WASM_BASE64 } from './wasm.js';
 import { fromBase64 } from './base64.js';
+import {
+  MAX_PAYLOAD_BYTES, CobsError, encodeMax, decodeMax, assertBytes, checkPayloadLen,
+} from './shared.js';
+
+export { MAX_PAYLOAD_BYTES, CobsError, encodeMax, decodeMax };
+
+// Always present, so a caller can log which implementation it got without caring
+// whether it resolved the Node entry or this one. ./node.js overrides it when a
+// native prebuild loads.
+export const backend = 'wasm';
 
 const PAGE = 65536;
 const EXPECTED_ABI = 1;
-
-// A payload and its encoding must both fit in one wasm32 linear memory.
-export const MAX_PAYLOAD_BYTES = 0x20000000;
-
-const RET_NAMES = { 1: 'BAD_ARG', 2: 'BAD_PAYLOAD', 3: 'EXHAUSTED' };
-const RET_DETAIL = {
-  1: 'invalid argument',
-  2: 'malformed COBS frame',
-  // decode always sizes output to the proven bound, so EXHAUSTED has one meaning.
-  3: 'truncated frame: a code byte pointed past the end of the input',
-};
-
-export class CobsError extends Error {
-  constructor(ret, context) {
-    super(`nanocobs: ${context}: ${RET_DETAIL[ret] ?? 'unknown error'}`);
-    this.name = 'CobsError';
-    this.code = RET_NAMES[ret];
-    this.ret = ret;
-  }
-  // Survives cross-realm and duplicate-instance boundaries; instanceof does not.
-  static isCobsError(e) {
-    return !!e && typeof e === 'object' && e.name === 'CobsError' && 'ret' in e;
-  }
-}
-
-export function encodeMax(decodedLen) {
-  return 1 + decodedLen + Math.ceil(decodedLen / 254) + (decodedLen === 0 ? 1 : 0);
-}
-
-// A proven bound: every frame spends at least one code byte and one delimiter.
-export function decodeMax(frameLen) {
-  return Math.max(0, frameLen - 2);
-}
-
-// instanceof is false for a typed array from another realm, and Buffer must pass.
-function assertBytes(x, name) {
-  if (Object.prototype.toString.call(x) !== '[object Uint8Array]') {
-    throw new TypeError(`nanocobs: ${name} must be a Uint8Array, got ${typeof x}`);
-  }
-}
 
 export const wasmModule = new WebAssembly.Module(fromBase64(WASM_BASE64));
 
@@ -104,10 +74,7 @@ export function createCodec(options = {}) {
   function encodeInto(payload, frame, throwOnError = true) {
     assertBytes(payload, 'payload');
     assertBytes(frame, 'frame');
-    if (payload.length > MAX_PAYLOAD_BYTES) {
-      throw new RangeError(`nanocobs: payload of ${payload.length} bytes exceeds ` +
-                           `MAX_PAYLOAD_BYTES (${MAX_PAYLOAD_BYTES})`);
-    }
+    checkPayloadLen(payload.length);
     const cap = Math.min(frame.length, encodeMax(payload.length));
     const { r, outPtr, m } = run(ex.cobs_wasm_encode, payload, cap, 'encode');
     if (r < 0) return throwOnError ? check(r, 'encode') : r;
@@ -118,14 +85,6 @@ export function createCodec(options = {}) {
   function decodeInto(frame, payload, throwOnError = true) {
     assertBytes(frame, 'frame');
     assertBytes(payload, 'payload');
-    // cobs_decode stops at the first delimiter and reports success, dropping the
-    // rest. Wrong for a caller holding a socket read; decodeFirst() is for that.
-    const z = frame.indexOf(0);
-    if (z !== frame.length - 1) {
-      if (!throwOnError) return -2;
-      throw new CobsError(2, z < 0 ? 'decode (no trailing delimiter)'
-                                   : 'decode (interior delimiter; use decodeFirst() to walk frames)');
-    }
     const cap = Math.min(payload.length, decodeMax(frame.length));
     const { r, outPtr, m } = run(ex.cobs_wasm_decode, frame, cap, 0);
     if (r < 0) return throwOnError ? check(r, 'decode') : r;
@@ -141,13 +100,11 @@ export function createCodec(options = {}) {
     return m.slice(outPtr, outPtr + r);      // the slice is the trim
   }
 
+  // Stops at the first delimiter and ignores whatever follows, exactly as cobs_decode
+  // does: a buffer may hold more than one frame. Use decodeFirst() to learn how many
+  // bytes the frame occupied and walk to the next one.
   function decode(frame) {
     assertBytes(frame, 'frame');
-    const z = frame.indexOf(0);
-    if (z !== frame.length - 1) {
-      throw new CobsError(2, z < 0 ? 'decode (no trailing delimiter)'
-                                   : 'decode (interior delimiter; use decodeFirst() to walk frames)');
-    }
     const cap = decodeMax(frame.length);
     const { r, outPtr, m } = run(ex.cobs_wasm_decode, frame, cap, 0);
     check(r, 'decode');
@@ -155,15 +112,12 @@ export function createCodec(options = {}) {
   }
 
   // Decode the frame at the front of a buffer that may hold more, and report the
-  // bytes it occupied. The count is cobs_decode's out_enc_consumed, so a walker
-  // built on this scans for nothing:
+  // bytes it occupied. The count is cobs_decode's out_enc_consumed, so the caller
+  // scans for nothing to find the next frame.
   //
-  //     let i = 0;
-  //     while (i < buf.length) {
-  //       const { payload, consumed } = decodeFirst(buf.subarray(i));
-  //       handle(payload);
-  //       i += consumed;
-  //     }
+  // For a buffer of back-to-back frames, reach for decodeFrames(): each decodeFirst()
+  // copies the whole buffer it is handed into wasm memory, so walking with
+  // decodeFirst(buf.subarray(i)) recopies the tail once per frame and costs O(n^2).
   function decodeFirst(buf) {
     assertBytes(buf, 'buf');
     if (buf.length < 2) throw new CobsError(1, 'decodeFirst');
@@ -173,8 +127,51 @@ export function createCodec(options = {}) {
     return { payload: m.slice(outPtr, outPtr + r), consumed: readConsumed(m) };
   }
 
+  // Every complete frame in |buf|, with one copy into wasm memory and the walk done
+  // at advancing offsets inside it: linear in |buf| however many frames it holds.
+  //
+  // |consumed| is how much of |buf| held complete frames. Anything past it is a
+  // partial frame -- the usual tail of a socket read -- for the caller to carry over
+  // and prepend to the next chunk.
+  //
+  // An earlier version of this walked buf.indexOf(0) instead, because cobs_decode had
+  // no way to say how much of the input a frame occupied. It does now, so the scan is
+  // gone and the frame boundaries come from the decoder itself.
+  function decodeFrames(buf) {
+    assertBytes(buf, 'buf');
+    const frames = [];
+    if (buf.length < 2) return { frames, consumed: 0 };
+
+    const inPtr = base;
+    const outPtr = base + ((buf.length + 7) & ~7) + 8;
+    reserve(outPtr - base + decodeMax(buf.length));
+    const m = mem;                      // read after reserve; never hoist this
+    m.set(buf, inPtr);
+
+    let off = 0;
+    while (buf.length - off >= 2) {
+      const left = buf.length - off;
+      // decodeMax(left) is the proven bound for the frame at this offset, so the
+      // destination can never be the thing that is too small.
+      const r = ex.cobs_wasm_decode(inPtr + off, left, outPtr, decodeMax(left), scratch);
+      if (r < 0) {
+        // Hence EXHAUSTED has one meaning here: the input ran out mid-frame. That is
+        // a partial tail, not an error -- stop and let |consumed| report it.
+        if (-r === 3) break;
+        throw new CobsError(-r, 'decodeFrames');
+      }
+      frames.push(m.slice(outPtr, outPtr + r));
+      const used = readConsumed(m);
+      // cobs_decode's consumed is always >= 2 on success. Guarded anyway: a zero here
+      // would spin forever, and this runs on whatever a socket delivered.
+      if (used <= 0) break;
+      off += used;
+    }
+    return { frames, consumed: off };
+  }
+
   return {
-    encode, decode, decodeFirst,
+    encode, decode, decodeFirst, decodeFrames,
     encodeInto: (p, f) => encodeInto(p, f, true),
     decodeInto: (f, p) => decodeInto(f, p, true),
     tryEncodeInto: (p, f) => encodeInto(p, f, false),
@@ -188,6 +185,7 @@ const shared = createCodec();
 export const encode = shared.encode;
 export const decode = shared.decode;
 export const decodeFirst = shared.decodeFirst;
+export const decodeFrames = shared.decodeFrames;
 export const encodeInto = shared.encodeInto;
 export const decodeInto = shared.decodeInto;
 export const tryEncodeInto = shared.tryEncodeInto;
