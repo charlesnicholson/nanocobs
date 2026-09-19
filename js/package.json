@@ -48,5 +48,8 @@
   ],
   "scripts": {
     "test": "node --test test/"
+  },
+  "dependencies": {
+    "node-gyp-build": "^4.8.4"
   }
 }

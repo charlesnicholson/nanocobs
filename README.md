@@ -148,14 +148,15 @@ one loaded; log it, because a silent fallback looks exactly like the native path
 
 There is no install script, so `npm install` never runs a compiler and `npm ci
 --ignore-scripts` still lands on native -- prebuilds resolve at import time, not install
-time. Prebuilds cover `darwin-arm64`, `darwin-x64`, `linux-{x64,arm64}` for glibc and musl,
-and `win32-x64`; the addon's sources ship too, for anywhere else. Browsers, bundlers, Deno
+time. Prebuilds cover macOS (universal), Linux x64/arm64/armv7 for glibc and musl plus
+ppc64, and Windows x64 and arm64; `node-gyp-build` resolves them at import time, and
+the addon's sources ship too, for anywhere else. Browsers, bundlers, Deno
 and Workers resolve to the wasm entry point through `package.json` export conditions and
 never see the native loader.
 
 The wasm is ~2 KB with zero imports, inlined as base64 so there is no file to load and no
 bundler configuration. Nothing generated is checked in: `make js-wasm` compiles `cobs.c`
-and `js/shim.c`, `make js-addon` builds the host's prebuild, `make js-test` assembles and
+and `js/shim.c`, `make js-addon` builds the host's prebuild with prebuildify, `make js-test` assembles and
 tests the package under `build/js`, and the release builds it all from source.
 `js/tools/wasm_inspect.py` asserts on the artifact -- zero imports, the exact export set,
 no data or start section -- which is the wasm counterpart to `make size-nolibc`.

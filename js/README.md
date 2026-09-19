@@ -6,8 +6,7 @@ Consistent Overhead Byte Stuffing. The [nanocobs](https://github.com/charlesnich
 npm install nanocobs
 ```
 
-No dependencies, and **no install script** -- installing never runs a compiler and
-cannot fail to build. Where the package carries a prebuilt native addon for your
+**No install script** -- installing never runs a compiler and cannot fail to build. Where the package carries a prebuilt native addon for your
 platform it uses that; everywhere else it falls back to WebAssembly, which is ~2 KB
 with zero imports, inlined as base64: no file to load, no `fs`, no `fetch`, no bundler
 plugin, no async init.
@@ -105,9 +104,11 @@ each. Which one you get is a performance question, not a behavioural one.
 | Node, anywhere else | wasm |
 | Browsers, bundlers, Deno, Workers | wasm |
 
-Prebuilds ship for `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64` (glibc and
-musl each) and `win32-x64`. Resolution happens when the module is first imported, not
-at install time, so `npm ci --ignore-scripts` still gets the native backend.
+Prebuilds ship for macOS (one universal binary covering Intel and Apple Silicon),
+Linux x64/arm64/armv7 (glibc and musl each) and ppc64, and Windows x64 and arm64.
+[`node-gyp-build`](https://github.com/prebuild/node-gyp-build) picks one when the
+module is first imported, not at install time, so `npm ci --ignore-scripts` still gets
+the native backend. It is the package's only dependency and has none of its own.
 
 ```js
 import { backend } from 'nanocobs';

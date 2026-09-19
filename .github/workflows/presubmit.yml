@@ -267,14 +267,17 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
-  # One prebuilt addon per (platform, arch, libc). N-API is ABI-stable across Node
-  # versions, so none of these vary with the Node that ends up loading them. Every
-  # target runs the conformance suite, which is what makes the native backend
-  # substitutable for wasm rather than merely present.
+  # One prebuilt addon per (platform, arch, libc). prebuildify drives node-gyp, so
+  # each leg needs only a compiler and a Node -- the wasm toolchain lives in the
+  # js-package job and arrives here as an artifact.
   #
-  # musl builds go through docker on a glibc runner rather than `container:`: the
-  # runner injects its own glibc-linked Node to execute actions, so actions/checkout
-  # cannot run inside an Alpine container.
+  # macOS ships one universal binary covering Intel and Apple Silicon, which is also
+  # why there is no macos-13 leg: that label has been retired and jobs using it queue
+  # forever without ever starting.
+  #
+  # musl goes through docker on a glibc runner rather than `container:`: the runner
+  # injects its own glibc-linked Node to execute actions, so actions/checkout cannot
+  # run inside Alpine.
   prebuilds:
     name: prebuild (${{ matrix.target }})
     needs: [js-package]
@@ -284,15 +287,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: darwin-arm64,      runs-on: macos-latest }
-          - { target: darwin-x64,        runs-on: macos-13 }
-          - { target: linux-x64-glibc,   runs-on: ubuntu-latest }
-          - { target: linux-arm64-glibc, runs-on: ubuntu-24.04-arm }
-          - { target: win32-x64,         runs-on: windows-latest }
+          - { target: darwin-x64+arm64,  runs-on: macos-latest,
+              flags: '--arch x64+arm64' }
+          - { target: linux-x64-glibc,   runs-on: ubuntu-latest,
+              flags: '--tag-libc' }
+          - { target: linux-arm64-glibc, runs-on: ubuntu-24.04-arm,
+              flags: '--tag-libc' }
           - { target: linux-x64-musl,    runs-on: ubuntu-latest,
-              docker: 'node:24-alpine' }
+              flags: '--tag-libc', docker: 'node:24-alpine' }
           - { target: linux-arm64-musl,  runs-on: ubuntu-24.04-arm,
-              docker: 'node:24-alpine' }
+              flags: '--tag-libc', docker: 'node:24-alpine' }
+          # Emulated. Node 24 has no armv7 build, so those two use Node 22 headers;
+          # N-API is ABI-stable, so the result still loads on any Node that has it.
+          - { target: linux-ppc64-glibc, runs-on: ubuntu-latest, qemu: 'linux/ppc64le',
+              flags: '--tag-libc', docker: 'node:24' }
+          - { target: linux-arm-glibc,   runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
+              flags: '--tag-libc', docker: 'node:22' }
+          - { target: linux-arm-musl,    runs-on: ubuntu-latest, qemu: 'linux/arm/v7',
+              flags: '--tag-libc', docker: 'node:22-alpine' }
+          - { target: win32-x64,         runs-on: windows-latest, flags: '' }
+          # Cross-compiled: an x64 runner cannot execute ARM64, so this one is built
+          # but never run. The alternative is Windows-on-ARM silently getting wasm.
+          - { target: win32-arm64,       runs-on: windows-latest,
+              flags: '--arch arm64', cross: true }
 
     steps:
       - uses: actions/checkout@v7
@@ -304,43 +321,54 @@ jobs:
         with:
           name: js-package
           path: build/js
+      - name: Emulation for ${{ matrix.qemu }}
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@v3
 
-      # --expect-target makes the host prove it is the platform this leg claims, so a
-      # mislabelled artifact fails here rather than at someone's npm install.
       - name: Build and test
         if: ${{ !matrix.docker && runner.os != 'Windows' }}
         run: |
-          npx --yes node-gyp install
-          python3 js/tools/build_addon.py --pkg build/js \
-            --expect-target '${{ matrix.target }}'
-          cd build/js && node --test
+          cd build/js
+          npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }}
+          node --test
 
-      - name: Build and test (musl, via docker)
+      - name: Build and test (docker)
         if: ${{ matrix.docker }}
         run: |
-          docker run --rm -v "$PWD":/w -w /w '${{ matrix.docker }}' sh -eu -c '
-            apk add --no-cache build-base python3 >/dev/null
-            npx --yes node-gyp install
-            python3 js/tools/build_addon.py --pkg build/js \
-              --expect-target "${{ matrix.target }}"
-            cd build/js && node --test
-          '
+          docker run --rm ${{ matrix.qemu && format('--platform {0}', matrix.qemu) || '' }} \
+            -v "$PWD":/w -w /w/build/js '${{ matrix.docker }}' sh -eu -c '
+              if command -v apk >/dev/null; then apk add --no-cache build-base python3
+              else apt-get update -qq && apt-get install -y -qq build-essential python3; fi
+              npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }}
+              node --test
+            '
 
-      # vswhere to locate the toolchain, then vcvars, the way nanoprintf does it.
-      - name: Build and test (MSVC)
+      - name: Build (MSVC)
         if: ${{ runner.os == 'Windows' }}
         shell: cmd
         run: |
-          call npx --yes node-gyp install || exit /b 1
-          for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath`) do set "VSPATH=%%i"
-          call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
-          python js/tools/build_addon.py --pkg build/js --expect-target ${{ matrix.target }} || exit /b 1
-          cd build\js && node --test || exit /b 1
+          cd build\js
+          call npx --yes prebuildify@6 --napi --strip ${{ matrix.flags }} || exit /b 1
+
+      # Cross builds cannot run, so the suite only runs on the native Windows leg.
+      - name: Test (MSVC)
+        if: ${{ runner.os == 'Windows' && !matrix.cross }}
+        shell: cmd
+        run: cd build\js && node --test || exit /b 1
+
+      - name: Confirm the target is what we think it is
+        shell: bash
+        run: |
+          set -eu
+          dir="build/js/prebuilds/${{ matrix.target }}"
+          test -d "$dir" || { echo "expected $dir, got:"; find build/js/prebuilds; exit 1; }
+          find "$dir" -name '*.node' | grep -q . || { echo "no addon in $dir"; exit 1; }
+          find "$dir" -type f
 
       - uses: actions/upload-artifact@v4
         with:
           name: prebuild-${{ matrix.target }}
-          path: build/js/prebuilds/${{ matrix.target }}/nanocobs.node
+          path: build/js/prebuilds/${{ matrix.target }}
           if-no-files-found: error
 
   all-checks-pass:
@@ -406,11 +434,11 @@ jobs:
           for d in build/prebuilds/prebuild-*/; do
             target="$(basename "$d" | sed 's/^prebuild-//')"
             mkdir -p "build/js/prebuilds/$target"
-            cp "$d/nanocobs.node" "build/js/prebuilds/$target/nanocobs.node"
+            cp "$d"/*.node "build/js/prebuilds/$target/"
           done
           find build/js/prebuilds -type f | sort
           # A release that quietly shipped one platform is worse than a failed one.
-          test "$(find build/js/prebuilds -name nanocobs.node | wc -l)" -eq 7
+          test "$(find build/js/prebuilds -name \*.node | wc -l)" -eq 10
 
       # Stamps build/js only; the source manifest keeps its @COBS_VERSION@ placeholder.
       # stdout is the dist-tag, so a prerelease cannot land on `latest`.

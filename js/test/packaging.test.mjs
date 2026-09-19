@@ -28,10 +28,13 @@ test('npm pack ships exactly the intended files', () => {
   // Prebuilds vary by host and by what the release matrix produced, so they are
   // checked by shape. Everything else is pinned: a stray test directory or a missing
   // wasm module should fail on the PR, not on tag day.
+  // node-gyp-build's layout: prebuilds/<platform>-<arch>/<name>[.libc].node, where
+  // <arch> may be a multi-arch tuple like x64+arm64 for a universal binary.
   const prebuilds = all.filter(f => f.startsWith('prebuilds/'));
   for (const f of prebuilds) {
-    assert.match(f, /^prebuilds\/[a-z0-9]+-[a-z0-9]+(-(glibc|musl))?\/nanocobs\.node$/,
-                 `unexpected prebuild path ${f}`);
+    assert.match(
+      f, /^prebuilds\/[a-z0-9]+-[a-z0-9+]+\/nanocobs(\.(glibc|musl))?\.node$/,
+      `unexpected prebuild path ${f}`);
   }
   assert.deepEqual(all.filter(f => !f.startsWith('prebuilds/')), [
     'LICENSE',
@@ -44,7 +47,6 @@ test('npm pack ships exactly the intended files', () => {
     'src/base64.js',
     'src/index.d.ts',
     'src/index.js',
-    'src/loader.js',
     'src/native.js',
     'src/node.js',
     'src/shared.js',

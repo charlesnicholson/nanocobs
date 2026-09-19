@@ -13,12 +13,24 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as wasm from '../src/index.js';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { createNativeCodec } from '../src/native.js';
-import { loadNative } from '../src/loader.js';
 import { u8, concat } from './helpers.mjs';
 import { SHAPES, makeShape } from './shapes.mjs';
 
-const addon = loadNative();
+// node-gyp-build throws when this host has no prebuild, which is the ordinary case on
+// a platform we do not ship one for; the suite then skips rather than fails.
+function loadAddon() {
+  try {
+    return createRequire(import.meta.url)('node-gyp-build')(
+      fileURLToPath(new URL('..', import.meta.url)));
+  } catch {
+    return null;
+  }
+}
+
+const addon = loadAddon();
 const native = addon ? createNativeCodec(addon) : null;
 
 // Outcome, not value: a Uint8Array, a number, or the name of what was thrown. Both

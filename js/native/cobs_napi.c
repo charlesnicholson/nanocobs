@@ -211,11 +211,13 @@ static napi_value js_decode(napi_env env, napi_callback_info info) {
 }
 
 NAPI_MODULE_INIT() {
+  // napi_enumerable, not napi_default: without it these are invisible to Object.keys
+  // and console.log prints the addon as {}, which reads as a broken load.
   napi_property_descriptor const props[] = {
-    { "encode", NULL, js_encode, NULL, NULL, NULL, napi_default, NULL },
-    { "decode", NULL, js_decode, NULL, NULL, NULL, napi_default, NULL },
-    { "encodeInto", NULL, js_encode_into, NULL, NULL, NULL, napi_default, NULL },
-    { "decodeInto", NULL, js_decode_into, NULL, NULL, NULL, napi_default, NULL },
+    { "encode", NULL, js_encode, NULL, NULL, NULL, napi_enumerable, NULL },
+    { "decode", NULL, js_decode, NULL, NULL, NULL, napi_enumerable, NULL },
+    { "encodeInto", NULL, js_encode_into, NULL, NULL, NULL, napi_enumerable, NULL },
+    { "decodeInto", NULL, js_decode_into, NULL, NULL, NULL, napi_enumerable, NULL },
   };
   if (napi_define_properties(env, exports, sizeof(props) / sizeof(props[0]), props) !=
       napi_ok) {
