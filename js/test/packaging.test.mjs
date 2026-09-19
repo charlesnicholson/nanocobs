@@ -11,7 +11,9 @@ import { readFileSync } from 'node:fs';
 const pkgDir = new URL('..', import.meta.url).pathname;
 
 test('npm pack ships exactly the intended files', () => {
-  const out = execFileSync('npm', ['pack', '--dry-run', '--json'],
+  // npm is npm.cmd on Windows, and execFileSync does not apply PATHEXT.
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const out = execFileSync(npm, ['pack', '--dry-run', '--json'],
                            { cwd: pkgDir, encoding: 'utf8' });
   const all = JSON.parse(out)[0].files.map(f => f.path).sort();
 
