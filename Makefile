@@ -191,6 +191,26 @@ NODE ?= node
 include js/wasm-size-budget.mk
 
 JS_PKG := $(BUILD_DIR)/js
+# Stand-in for the version outside a release; release.py stamps the real tag over it.
+JS_DEV_VERSION := 0.0.0-dev
+
+# The native backend. One prebuild per (platform, arch, libc): N-API is ABI-stable
+# across Node versions, so nothing here varies with the Node that loads it. The
+# package resolves these at require time, so no install script is ever needed and
+# `npm ci --ignore-scripts` still lands on native.
+NODE_VER := $(shell $(NODE) -p 'process.versions.node' 2>/dev/null)
+NODE_TARGET := $(shell $(NODE) -p "process.platform+'-'+process.arch+(process.platform==='linux'?(process.report.getReport().header.glibcVersionRuntime?'-glibc':'-musl'):'')" 2>/dev/null)
+# node-gyp caches the headers per version; set NODE_HEADERS to use your own copy.
+# Nothing here installs them -- without them the addon is skipped and the package
+# ships wasm-only, which is a valid package, just a slower one.
+NODE_HEADERS ?= $(firstword $(wildcard \
+					$(HOME)/Library/Caches/node-gyp/$(NODE_VER)/include/node \
+					$(HOME)/.cache/node-gyp/$(NODE_VER)/include/node \
+					$(HOME)/.node-gyp/$(NODE_VER)/include/node))
+# napi_* is resolved by the host process at load, not linked in.
+NAPI_LDFLAGS := $(if $(filter Darwin,$(OS)),-bundle -undefined dynamic_lookup,-shared)
+NAPI_CFLAGS := -O3 -DNDEBUG -std=c99 -Wall -Wextra -Werror -fPIC
+JS_PREBUILD := $(JS_PKG)/prebuilds/$(NODE_TARGET)/nanocobs.node
 
 # Golden vectors, produced by the C so the JS package is pinned to its bytes. Built
 # like the benchmark: own flags, no -Os, no sanitizers, .vo suffix to avoid collisions.
@@ -208,7 +228,20 @@ $(BUILD_DIR)/cobs.c.vo: cobs.c cobs.h Makefile
 $(BUILD_DIR)/cobs_vectors: $(VEC_OBJS) Makefile
 	$(CXX) $(ARCHFLAGS) $(VEC_OBJS) -o $@
 
-.PHONY: js-wasm js-package js-test js-pack js-vectors
+.PHONY: js-wasm js-package js-test js-pack js-vectors js-addon
+
+# Skips rather than fails without headers: a wasm-only package is still correct, and
+# `make js-test` should work on a machine that has never run node-gyp.
+js-addon:
+ifeq ($(NODE_HEADERS),)
+	@echo "js-addon: no Node headers for v$(NODE_VER); skipping the native backend."
+	@echo "          run 'npx node-gyp install' or set NODE_HEADERS to build it."
+else
+	@mkdir -p $(dir $(JS_PREBUILD))
+	$(CC) $(NAPI_CFLAGS) $(NAPI_LDFLAGS) -I$(NODE_HEADERS) -I. -Ijs/native \
+		-o $(JS_PREBUILD) js/native/cobs_napi.c cobs.c
+	@echo "js-addon: $(JS_PREBUILD)"
+endif
 
 # Compile the wasm and the JS module that inlines it, both under build/. Nothing
 # generated is checked in. build_wasm.py then runs wasm_inspect.py on the result.
@@ -222,10 +255,24 @@ js-vectors: $(BUILD_DIR)/cobs_vectors
 
 # The publishable tree: hand-written sources from js/, the generated wasm, and the
 # root LICENSE rather than a copy in js/.
-js-package: js-wasm js-vectors
-	@mkdir -p $(JS_PKG)/src $(JS_PKG)/test
-	@cp js/package.json $(JS_PKG)/
-	@cp js/src/index.js js/src/index.d.ts js/src/base64.js $(JS_PKG)/src/
+js-package: js-wasm js-vectors js-addon
+	@mkdir -p $(JS_PKG)/src $(JS_PKG)/test $(JS_PKG)/native
+	@# cp never removes, so a source file deleted upstream would linger here and ship.
+	@# Clear what this recipe hand-copies; wasm.js and vectors.json come from the
+	@# prerequisites above and must survive.
+	@find $(JS_PKG)/src -maxdepth 1 \( -name '*.js' ! -name 'wasm.js' -o -name '*.d.ts' \) \
+		-delete
+	@rm -f $(JS_PKG)/test/*.mjs $(JS_PKG)/native/*
+	@# The manifest placeholder is not valid semver, so npm publish refuses it and a
+	@# release that skipped its stamp cannot ship. npm pack does not check, so a
+	@# throwaway prerelease goes in here to keep local packing and tests working.
+	@sed 's/@COBS_VERSION@/$(JS_DEV_VERSION)/' js/package.json > $(JS_PKG)/package.json
+	@cp js/src/index.js js/src/index.d.ts js/src/base64.js js/src/shared.js \
+		js/src/native.js js/src/node.js js/src/loader.js $(JS_PKG)/src/
+	@# The addon's sources ship too, so a platform without a prebuild can build it by
+	@# hand. cobs.c and cobs.h come from the repo root; binding.gyp expects native/.
+	@cp js/native/cobs_napi.c cobs.c cobs.h $(JS_PKG)/native/
+	@cp js/binding.gyp $(JS_PKG)/
 	@cp LICENSE $(JS_PKG)/LICENSE
 	@cp js/README.md $(JS_PKG)/README.md
 	@if [ -d js/test ]; then cp js/test/*.mjs $(JS_PKG)/test/ 2>/dev/null || true; fi

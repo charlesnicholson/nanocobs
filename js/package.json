@@ -1,24 +1,51 @@
 {
   "name": "nanocobs",
-  "version": "0.0.0",
+  "version": "@COBS_VERSION@",
   "description": "Consistent Overhead Byte Stuffing. The nanocobs C implementation, compiled to WebAssembly.",
   "license": "Unlicense OR 0BSD",
   "author": "Charles Nicholson <charles.nicholson@gmail.com>",
   "type": "module",
   "sideEffects": false,
-  "engines": { "node": ">=20.19" },
+  "engines": {
+    "node": ">=20.19"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/charlesnicholson/nanocobs.git",
     "directory": "js"
   },
   "homepage": "https://github.com/charlesnicholson/nanocobs#readme",
-  "keywords": ["cobs", "framing", "serial", "wasm", "webassembly", "embedded"],
+  "keywords": [
+    "cobs",
+    "framing",
+    "serial",
+    "wasm",
+    "webassembly",
+    "embedded"
+  ],
   "exports": {
-    ".": { "types": "./src/index.d.ts", "default": "./src/index.js" },
+    ".": {
+      "types": "./src/index.d.ts",
+      "browser": "./src/index.js",
+      "workerd": "./src/index.js",
+      "deno": "./src/index.js",
+      "node": "./src/node.js",
+      "default": "./src/index.js"
+    },
+    "./wasm": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
     "./package.json": "./package.json"
   },
-  "files": ["src", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "prebuilds",
+    "native",
+    "binding.gyp",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/"
   }

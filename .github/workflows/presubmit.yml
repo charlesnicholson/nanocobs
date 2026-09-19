@@ -240,9 +240,73 @@ jobs:
       - name: Pack
         run: make js-pack
 
+  # One prebuilt addon per (platform, arch, libc). N-API is ABI-stable across Node
+  # versions, so none of these vary with the Node that ends up loading them. Every
+  # target runs the conformance suite, which is what makes the native backend
+  # substitutable for wasm rather than merely present.
+  prebuilds:
+    name: prebuild (${{ matrix.target }})
+    runs-on: ${{ matrix.runs-on }}
+    container: ${{ matrix.container }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: darwin-arm64,      runs-on: macos-latest }
+          - { target: darwin-x64,        runs-on: macos-13 }
+          - { target: linux-x64-glibc,   runs-on: ubuntu-latest }
+          - { target: linux-arm64-glibc, runs-on: ubuntu-24.04-arm }
+          - { target: win32-x64,         runs-on: windows-latest }
+          - { target: linux-x64-musl,    runs-on: ubuntu-latest,
+              container: 'node:24-alpine' }
+          - { target: linux-arm64-musl,  runs-on: ubuntu-24.04-arm,
+              container: 'node:24-alpine' }
+
+    steps:
+      - uses: actions/checkout@v7
+      # The alpine images ship node but not a toolchain or the headers make looks for.
+      - name: Alpine prerequisites
+        if: ${{ matrix.container != '' }}
+        run: apk add --no-cache build-base python3 make bash
+      - uses: actions/setup-node@v4
+        if: ${{ matrix.container == '' }}
+        with:
+          node-version: '24'
+      # make js-addon needs the headers for the running Node; nothing installs them
+      # for us, and without them the target would silently ship wasm-only.
+      - name: Node headers
+        run: npx --yes node-gyp install
+      - name: Build the addon
+        run: make js-addon
+      - name: Confirm the target is what we think it is
+        shell: bash
+        run: |
+          set -eu
+          test -f "build/js/prebuilds/${{ matrix.target }}/nanocobs.node" || {
+            echo "expected build/js/prebuilds/${{ matrix.target }}/nanocobs.node, got:"
+            find build/js/prebuilds -type f
+            exit 1
+          }
+      - name: Cache the envy toolchain
+        uses: actions/cache@v6
+        with:
+          path: build/envy-cache
+          key: envy-${{ runner.os }}-${{ hashFiles('envy.lua', 'envy/*.lua') }}
+      - name: Toolchains
+        run: ./bin/envy sync
+      # Both backends, same corpus, same answers required.
+      - name: Conformance
+        run: make js-test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prebuild-${{ matrix.target }}
+          path: build/js/prebuilds/${{ matrix.target }}/nanocobs.node
+          if-no-files-found: error
+
   all-checks-pass:
     needs: [version-placeholder, sanitizers, linux, macos, win, arm-cm4, swar-configs,
-            exhaustive, qemu, js]
+            exhaustive, qemu, js, prebuilds]
     runs-on: ubuntu-latest
     steps:
     - run: echo Done
@@ -285,17 +349,38 @@ jobs:
         run: python3 release.py --tag "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --out build/release
 
       # Test before publishing, so the tarball comes from the tree the tests ran on.
+      # This also assembles build/js, which is why the prebuilds land after it.
       - name: Build and test the npm package
         run: make js-test
 
-      # Stamps build/js only; the source manifest keeps its 0.0.0 placeholder.
+      # Every target's addon, from the prebuilds matrix that gated this job. Unpacked
+      # after js-test because js-package prunes what it assembles, and a prebuild
+      # dropped in before that would be swept away.
+      - name: Collect the prebuilds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: prebuild-*
+          path: build/prebuilds
+      - name: Lay the prebuilds out for the package
+        run: |
+          set -eu
+          for d in build/prebuilds/prebuild-*/; do
+            target="$(basename "$d" | sed 's/^prebuild-//')"
+            mkdir -p "build/js/prebuilds/$target"
+            cp "$d/nanocobs.node" "build/js/prebuilds/$target/nanocobs.node"
+          done
+          find build/js/prebuilds -type f | sort
+          # A release that quietly shipped one platform is worse than a failed one.
+          test "$(find build/js/prebuilds -name nanocobs.node | wc -l)" -eq 7
+
+      # Stamps build/js only; the source manifest keeps its @COBS_VERSION@ placeholder.
       # stdout is the dist-tag, so a prerelease cannot land on `latest`.
       - name: Stamp the package version
         id: npm
         run: echo "dist_tag=$(python3 release.py --stamp-npm build/js --tag "${GITHUB_REF_NAME}")" >> "$GITHUB_OUTPUT"
 
-      # Not `make js-pack`: it depends on js-package, which would re-copy the
-      # unstamped manifest. Nothing may re-assemble build/js past this point.
+      # Not `make js-pack`: it depends on js-package, which would re-substitute the
+      # throwaway version. Nothing may re-assemble build/js past this point.
       - name: Pack the tarball for the release asset
         working-directory: build/js
         run: npm pack --pack-destination ..

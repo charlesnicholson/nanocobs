@@ -26,18 +26,10 @@ function encodeBoth(payload, cap) {
   };
 }
 
-// The package rejects a displaced delimiter before the C sees it. cobs_ref.mjs stays
-// a faithful cobs.c model, so the package's extra rule lives here.
-function refDecodePackage(frame, out) {
-  const z = frame.indexOf(0);
-  if (z !== frame.length - 1) return { ret: RET.BAD_PAYLOAD };
-  return refDecodeInto(frame, out);
-}
-
 function decodeBoth(frame, cap) {
   const a = new Uint8Array(cap + 8).fill(POISON);
   const b = new Uint8Array(cap + 8).fill(POISON);
-  const ra = refDecodePackage(frame, a.subarray(0, cap));
+  const ra = refDecodeInto(frame, a.subarray(0, cap));
   const rb = cobs.tryDecodeInto(frame, b.subarray(0, cap));
   return {
     ref: { ret: ra.ret, len: ra.len ?? 0, buf: a },
