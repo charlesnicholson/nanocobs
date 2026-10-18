@@ -28,7 +28,8 @@ WARN_CXX += -Wno-c++98-compat \
 			-Wno-c++98-compat-pedantic \
 			-Wno-c++98-compat-bind-to-temporary-copy \
 			-Wno-pre-c++20-compat-pedantic \
-			-Wno-nrvo
+			-Wno-nrvo \
+			-Wno-c2y-extensions
 WARN_C += -Wno-declaration-after-statement
 WARN_BENCH += -Wno-global-constructors \
 			  -Wno-exit-time-destructors \
