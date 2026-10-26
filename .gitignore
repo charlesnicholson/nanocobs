@@ -61,3 +61,7 @@ Mkfile.old
 dkms.conf
 .envy-cache-local
 .envy-cache-shared
+
+# Python bytecode
+__pycache__/
+*.pyc
