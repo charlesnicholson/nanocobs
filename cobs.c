@@ -551,6 +551,8 @@ cobs_ret_t cobs_decode_inc_begin(cobs_decode_inc_ctx_t* ctx) {
     return COBS_RET_ERR_BAD_ARG;
   }
   ctx->state = COBS_DECODE_READ_CODE;
+  ctx->block = 0;
+  ctx->code = 0;
   return COBS_RET_SUCCESS;
 }
 
