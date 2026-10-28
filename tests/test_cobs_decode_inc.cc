@@ -13,6 +13,14 @@ TEST_CASE("cobs_decode_inc_begin") {
   c.state = cobs_decode_inc_state_t(COBS_DECODE_READ_CODE + 1);
   REQUIRE(cobs_decode_inc_begin(&c) == COBS_RET_SUCCESS);
   REQUIRE(c.state == COBS_DECODE_READ_CODE);
+
+  SUBCASE("resets block and code") {
+    memset(&c, 0xFF, sizeof(c));
+    REQUIRE(cobs_decode_inc_begin(&c) == COBS_RET_SUCCESS);
+    REQUIRE(c.state == COBS_DECODE_READ_CODE);
+    REQUIRE(c.block == 0);
+    REQUIRE(c.code == 0);
+  }
 }
 
 TEST_CASE("cobs_decode_inc bad args") {
