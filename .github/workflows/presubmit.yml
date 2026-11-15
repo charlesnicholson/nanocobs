@@ -37,6 +37,11 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+      # The Ubuntu 26.04 runners use the kernel's full 32 bits of mmap ASLR entropy,
+      # which collides with MSan's shadow layout. MSan copes by re-executing itself
+      # via personality(ADDR_NO_RANDOMIZE), which Docker's default seccomp profile
+      # rejects ("unable to disable ASLR").
+      options: --security-opt seccomp=unconfined
 
     strategy:
       matrix:
